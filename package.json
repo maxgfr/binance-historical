@@ -1,15 +1,21 @@
 {
-  "name": "typescript-swc-starter",
+  "name": "node-binance-historic",
   "version": "1.0.0",
   "author": "maxgfr",
   "license": "MIT",
   "description": "A minimalist typescript swc starter",
+  "keywords": [
+    "node",
+    "typescript",
+    "binance",
+    "historic"
+  ],
   "scripts": {
     "start": "node build/main.js",
     "dev": "nodemon",
     "develop": "swc ./src -d build && node build/main.js",
-    "test": "DOTENV_CONFIG_PATH=.env.test jest",
-    "test:watch": "DOTENV_CONFIG_PATH=.env.test jest --watch",
+    "test": "jest",
+    "test:watch": "jest --watch",
     "clean": "rimraf build",
     "build": "tsc -p tsconfig.json",
     "build:watch": "tsc -w -p tsconfig.json",
@@ -19,7 +25,7 @@
     "prettier": "prettier --write './src/**/*.{ts,js,json}'"
   },
   "dependencies": {
-    "dotenv": "16.0.0"
+    "axios": "^0.26.0"
   },
   "devDependencies": {
     "@swc/cli": "0.1.55",
