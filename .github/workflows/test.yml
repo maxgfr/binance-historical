@@ -1,0 +1,14 @@
+name: Test code
+
+on: push
+
+jobs:
+  test-code:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Install
+        run: yarn
+      - name: Test
+        run: yarn test
