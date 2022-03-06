@@ -2,7 +2,7 @@
   "name": "binance-historic",
   "author": "maxgfr",
   "license": "MIT",
-  "description": "A minimalist typescript swc starter",
+  "description": "Get historical klines from binance api",
   "keywords": [
     "node",
     "typescript",
