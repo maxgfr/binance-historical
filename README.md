@@ -1,4 +1,4 @@
-# typescript-swc-starter
+# binance-historic
 
 A simple node boilerplate made in typescript using swc.
 

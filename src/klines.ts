@@ -9,6 +9,9 @@ export async function getKline(
   endDate: Date,
   limit = 1000,
 ): Promise<Array<Kline>> {
+  if (startDate.getTime() > endDate.getTime()) {
+    throw new Error('Start date must be before end date');
+  }
   const numberOfCall = calculateNumberOfCall(
     interval,
     startDate.getTime(),

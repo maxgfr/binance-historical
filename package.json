@@ -1,5 +1,5 @@
 {
-  "name": "node-binance-historic",
+  "name": "binance-historic",
   "version": "1.0.0",
   "author": "maxgfr",
   "license": "MIT",
@@ -25,7 +25,8 @@
     "prettier": "prettier --write './src/**/*.{ts,js,json}'"
   },
   "dependencies": {
-    "axios": "^0.26.0"
+    "axios": "^0.26.0",
+    "prompts": "^2.4.2"
   },
   "devDependencies": {
     "@swc/cli": "0.1.55",
@@ -33,6 +34,7 @@
     "@swc/jest": "0.2.20",
     "@types/jest": "27.4.1",
     "@types/node": "16.11.26",
+    "@types/prompts": "^2.0.14",
     "@typescript-eslint/eslint-plugin": "5.13.0",
     "@typescript-eslint/parser": "5.13.0",
     "eslint": "8.10.0",

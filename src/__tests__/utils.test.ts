@@ -68,7 +68,7 @@ describe('utils', () => {
     `(
       'should get {expected} seconds for {interval}',
       ({ iterations, startDate, endDate, expected }) => {
-        expect(divideInterval(iterations, startDate, endDate)).toEqual(
+        expect(divideInterval(iterations, startDate, endDate)).toStrictEqual(
           expected,
         );
       },

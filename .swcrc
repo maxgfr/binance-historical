@@ -5,9 +5,9 @@
       "syntax": "typescript",
       "tsx": false,
       "decorators": true,
-      "dynamicImport": false
+      "dynamicImport": true
     },
-    "target": "es5",
+    "target": "es2021",
     "minify": {
       "compress": {
         "unused": true

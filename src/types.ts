@@ -28,3 +28,11 @@ export type BinanceInterval =
   | '1d'
   | '3d'
   | '1w';
+
+export type PromptResult = {
+  pair: string;
+  interval: BinanceInterval;
+  startDate: Date;
+  endDate: Date;
+  fileName: string;
+};
