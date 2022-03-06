@@ -1,6 +1,5 @@
 {
   "name": "binance-historic",
-  "version": "1.0.0",
   "author": "maxgfr",
   "license": "MIT",
   "description": "A minimalist typescript swc starter",
