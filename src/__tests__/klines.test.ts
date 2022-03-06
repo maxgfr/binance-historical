@@ -21,14 +21,4 @@ describe('klines', () => {
     expect(result.length).toBeGreaterThan(360);
     expect(result.length).toBeLessThan(370);
   });
-
-  test('Fetch for one day', async () => {
-    const result = await getKline(
-      'ETHUSDT',
-      '1d',
-      new Date('01-09-2021'),
-      new Date('01-10-2021'),
-    );
-    expect(result).toHaveLength(1);
-  });
 });
