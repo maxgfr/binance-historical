@@ -7,6 +7,10 @@
     "type": "git",
     "url": "https://github.com/maxgfr/binance-historic.git"
   },
+  "bugs": {
+    "url": "https://github.com/maxgfr/binance-historic/issues"
+  },
+  "homepage": "https://github.com/maxgfr/binance-historic#readme",
   "keywords": [
     "node",
     "typescript",
