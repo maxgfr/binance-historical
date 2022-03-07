@@ -26,6 +26,6 @@ jobs:
       - name: Setup .npmrc
         run: echo "//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}" >>  ~/.npmrc
       - name: Publish
-        run: npm publish
+        run: yarn publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

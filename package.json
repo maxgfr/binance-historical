@@ -11,6 +11,9 @@
     "url": "https://github.com/maxgfr/binance-historic/issues"
   },
   "homepage": "https://github.com/maxgfr/binance-historic#readme",
+  "files": [
+    "build"
+  ],
   "keywords": [
     "node",
     "typescript",
