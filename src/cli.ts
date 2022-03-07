@@ -1,6 +1,8 @@
 import prompts from 'prompts';
 import { PromptResult } from './types';
 
+import { getKline } from 'binance-historic';
+
 const questions: Array<prompts.PromptObject> = [
   {
     type: 'text',
