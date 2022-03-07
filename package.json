@@ -7,12 +7,12 @@
   "description": "Download historical klines from binance api",
   "repository": {
     "type": "git",
-    "url": "https://github.com/maxgfr/binance-historic.git"
+    "url": "https://github.com/maxgfr/binance-historical.git"
   },
   "bugs": {
-    "url": "https://github.com/maxgfr/binance-historic/issues"
+    "url": "https://github.com/maxgfr/binance-historical/issues"
   },
-  "homepage": "https://github.com/maxgfr/binance-historic#readme",
+  "homepage": "https://github.com/maxgfr/binance-historical#readme",
   "files": [
     "build"
   ],
