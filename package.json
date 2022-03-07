@@ -1,6 +1,6 @@
 {
   "name": "binance-historic",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "author": "maxgfr",
   "license": "MIT",
   "main": "./build/index.js",
