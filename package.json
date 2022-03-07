@@ -2,7 +2,7 @@
   "name": "binance-historic",
   "author": "maxgfr",
   "license": "MIT",
-  "main": "./build/index.js",
+  "main": "./build/bin/index.js",
   "description": "Download historical klines from binance api",
   "repository": {
     "type": "git",
@@ -24,9 +24,9 @@
     "download"
   ],
   "scripts": {
-    "start": "node build/index.js",
+    "start": "node build/bin/index.js",
     "dev": "nodemon",
-    "develop": "swc ./src -d build && node build/index.js",
+    "develop": "swc ./src -d build && node build/bin/index.js",
     "test": "jest",
     "test:watch": "jest --watch",
     "clean": "rimraf build",

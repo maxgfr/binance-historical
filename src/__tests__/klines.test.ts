@@ -8,6 +8,7 @@ describe('klines', () => {
       new Date('01-09-2020'),
       new Date('01-12-2021'),
     );
+    console.log(result);
     expect(result.length).toBeGreaterThan(2200);
   });
 

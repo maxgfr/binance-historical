@@ -1,5 +1,7 @@
 import prompts from 'prompts';
 import { PromptResult } from './types';
+import { getKline } from './klines';
+import { formatDate, saveKline } from './utils';
 
 const questions: Array<prompts.PromptObject> = [
   {
@@ -50,9 +52,25 @@ const questions: Array<prompts.PromptObject> = [
   },
 ];
 
-export async function promptUser(): Promise<PromptResult> {
+async function promptUser(): Promise<Partial<PromptResult>> {
   const { pair, interval, startDate, endDate, fileName } = await prompts(
     questions,
   );
   return { pair, interval, startDate, endDate, fileName };
+}
+
+export async function runPrompt() {
+  const { pair, interval, startDate, endDate, fileName } = await promptUser();
+  if (!pair || !interval || !startDate || !endDate || !fileName) {
+    console.log('Missing informations 😭');
+    return;
+  }
+  const kLines = await getKline(pair, interval, startDate, endDate);
+  saveKline(
+    fileName +
+      `${pair}_${interval}_${formatDate(startDate)}_${formatDate(
+        endDate,
+      )}.json`,
+    kLines,
+  );
 }
