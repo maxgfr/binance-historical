@@ -1,8 +1,21 @@
 # binance-historic
 
+Utility to retrieve historical data from Binance.
+
+![Alt Text](https://raw.githubusercontent.com/maxgfr/binance-historic/main/.github/assets/binance-historic.gif)
+
 ## Usage
 
-### The library
+### With the cli
+
+```sh
+npm install -g binance-historic
+binance-historic download
+# or
+npx binance-historic download
+```
+
+### With the library
 
 ```ts
 import { getKline, Kline } from 'binance-historic';
@@ -33,13 +46,4 @@ console.log(result);
 //   },
 //   ...
 // ]
-```
-
-### The cli
-
-```sh
-npm install -g binance-historic
-binance-historic download
-# or
-npx binance-historic download
 ```

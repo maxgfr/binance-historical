@@ -25,7 +25,8 @@
     "binance",
     "historic",
     "klines",
-    "download"
+    "download",
+    "trading"
   ],
   "scripts": {
     "start": "node build/index.js",
