@@ -73,4 +73,5 @@ export async function runPrompt() {
       )}.json`,
     kLines,
   );
+  console.log('Done 🎉');
 }
