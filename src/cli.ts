@@ -66,15 +66,23 @@ async function processUserInformations() {
     console.log('Missing informations 😭');
     return;
   }
-  const kLines = await getKline(pair, interval, startDate, endDate);
-  saveKline(
-    fileName +
-      `${pair}_${interval}_${formatDate(startDate)}_${formatDate(
-        endDate,
-      )}.json`,
-    kLines,
+  const kLines = await getKline(pair, interval, startDate, endDate).catch(
+    () => {
+      console.log(
+        'Error with binance-api, we cannot get klines for this period or pair 😅',
+      );
+    },
   );
-  console.log('Done 🎉');
+  if (kLines) {
+    saveKline(
+      fileName +
+        `${pair}_${interval}_${formatDate(startDate)}_${formatDate(
+          endDate,
+        )}.json`,
+      kLines,
+    );
+    console.log('Done 🎉');
+  }
 }
 
 export async function runCommand() {
