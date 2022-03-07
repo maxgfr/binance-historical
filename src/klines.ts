@@ -1,5 +1,10 @@
 import axios from 'axios';
-import { BinanceInterval, Kline } from './types';
+import {
+  BinanceInterval,
+  BinanceResponse,
+  BinanceResponseData,
+  Kline,
+} from './types';
 import { calculateNumberOfCall, divideInterval } from './utils';
 
 export async function getKline(
@@ -24,13 +29,13 @@ export async function getKline(
     endDate.getTime(),
   );
 
-  let data: Array<string | number> = [];
+  let data: Array<BinanceResponseData> = [];
   for (let i = 0; i < divisions.length; i++) {
     if (i + 1 !== divisions.length) {
       const start = divisions[i];
       const end = divisions[i + 1];
       const url = `https://api.binance.com/api/v1/klines?symbol=${pair}&interval=${interval}&startTime=${start}&endTime=${end}&limit=${limit}`;
-      const response = await axios.get(url);
+      const response: BinanceResponse = await axios.get(url);
       data = [...data, ...response.data];
     }
   }

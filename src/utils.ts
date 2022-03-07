@@ -49,7 +49,7 @@ export function intervalToSeconds(interval: BinanceInterval): number {
     case '1w':
       return 604800;
     default:
-      return null;
+      return 0;
   }
 }
 
@@ -65,7 +65,7 @@ export function calculateNumberOfCall(
   const optimal = Math.ceil(diff / intervalSeconds);
   const result = Math.ceil(optimal / 1000);
   if (isNaN(result)) {
-    return null;
+    return 0;
   }
   return result;
 }

@@ -22,7 +22,7 @@ describe('utils', () => {
       ${'1d'}  | ${86400}
       ${'3d'}  | ${259200}
       ${'1w'}  | ${604800}
-      ${'2w'}  | ${null}
+      ${'2w'}  | ${0}
     `(
       'should get {expected} seconds for {interval}',
       ({ interval, expected }) => {
@@ -48,7 +48,7 @@ describe('utils', () => {
       ${'1d'}  | ${new Date('01-01-2020').getTime()} | ${new Date('01-02-2021').getTime()} | ${367}
       ${'3d'}  | ${new Date('01-01-2020').getTime()} | ${new Date('01-01-2021').getTime()} | ${122}
       ${'1w'}  | ${new Date('01-01-2020').getTime()} | ${new Date('01-01-2021').getTime()} | ${53}
-      ${'2w'}  | ${new Date('01-01-2020').getTime()} | ${new Date('01-01-2021').getTime()} | ${null}
+      ${'2w'}  | ${new Date('01-01-2020').getTime()} | ${new Date('01-01-2021').getTime()} | ${0}
     `(
       'should get {expected} seconds for {interval}',
       ({ interval, startTime, endTime, expected }) => {

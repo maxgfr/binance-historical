@@ -29,6 +29,23 @@ export type BinanceInterval =
   | '3d'
   | '1w';
 
+export type BinanceResponse = { data: BinanceResponseData[] };
+
+export type BinanceResponseData = [
+  number,
+  string,
+  string,
+  string,
+  string,
+  string,
+  number,
+  string,
+  number,
+  string,
+  string,
+  string,
+];
+
 export type PromptResult = {
   pair: string;
   interval: BinanceInterval;
