@@ -1,5 +1,5 @@
 {
-  "name": "binance-history",
+  "name": "binance-historical",
   "version": "1.5.2",
   "author": "maxgfr",
   "license": "MIT",
@@ -17,7 +17,7 @@
     "build"
   ],
   "bin": {
-    "binance-history": "./build/index.js"
+    "binance-historical": "./build/index.js"
   },
   "keywords": [
     "node",
