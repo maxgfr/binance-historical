@@ -90,10 +90,10 @@ export async function runCommand() {
 
   program
     .name('binance-historic')
-    .description('Utility to download historical klines from binance')
-    .version('1.2.1');
+    .description('Utility to download historical klines from binance');
 
   program
+    .command('download')
     .description(
       'Download a JSON file which contains historical klines from binance api',
     )

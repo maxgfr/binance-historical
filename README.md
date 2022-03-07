@@ -2,7 +2,7 @@
 
 ## Usage
 
-### By using the library
+### The library
 
 ```ts
 import { getKline, Kline } from 'binance-historic';
@@ -35,11 +35,11 @@ console.log(result);
 // ]
 ```
 
-### By using the cli
+### The cli
 
 ```sh
 npm install -g binance-historic
-binance-historic
+binance-historic download
 # or
-npx binance-historic
+npx binance-historic download
 ```
