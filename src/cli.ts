@@ -3,6 +3,7 @@ import { PromptResult } from './types';
 import { getKline } from './klines';
 import { formatDate, saveKline } from './utils';
 import { Command } from 'commander';
+import path from 'path';
 
 const questions: Array<prompts.PromptObject> = [
   {
@@ -49,7 +50,7 @@ const questions: Array<prompts.PromptObject> = [
     type: 'text',
     name: 'fileName',
     message: 'The path of the file that will be saved:',
-    initial: `${__dirname}/`,
+    initial: `${path.resolve(__dirname)}/`,
   },
 ];
 
