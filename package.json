@@ -1,5 +1,6 @@
 {
   "name": "binance-historic",
+  "version": "1.2.1",
   "author": "maxgfr",
   "license": "MIT",
   "main": "./build/index.js",
@@ -30,7 +31,7 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "clean": "rimraf build",
-    "build": "tsc -p tsconfig.json",
+    "build": "rimraf build && tsc -p tsconfig.json",
     "build:watch": "tsc -w -p tsconfig.json",
     "build:swc": "swc ./src -d build",
     "build:swc:watch": "npm run build:swc -- -w",
@@ -39,6 +40,7 @@
   },
   "dependencies": {
     "axios": "0.26.0",
+    "commander": "^9.0.0",
     "prompts": "2.4.2"
   },
   "devDependencies": {

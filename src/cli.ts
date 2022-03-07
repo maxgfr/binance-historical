@@ -2,6 +2,7 @@ import prompts from 'prompts';
 import { PromptResult } from './types';
 import { getKline } from './klines';
 import { formatDate, saveKline } from './utils';
+import { Command } from 'commander';
 
 const questions: Array<prompts.PromptObject> = [
   {
@@ -59,7 +60,7 @@ async function promptUser(): Promise<Partial<PromptResult>> {
   return { pair, interval, startDate, endDate, fileName };
 }
 
-export async function runPrompt() {
+async function processUserInformations() {
   const { pair, interval, startDate, endDate, fileName } = await promptUser();
   if (!pair || !interval || !startDate || !endDate || !fileName) {
     console.log('Missing informations 😭');
@@ -74,4 +75,21 @@ export async function runPrompt() {
     kLines,
   );
   console.log('Done 🎉');
+}
+
+export async function runCommand() {
+  const program = new Command();
+
+  program
+    .name('binance-historic')
+    .description('Utility to download historical klines from binance')
+    .version('1.2.1');
+
+  program
+    .description(
+      'Download a JSON file which contains historical klines from binance api',
+    )
+    .action(() => processUserInformations());
+
+  program.parse();
 }

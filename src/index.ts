@@ -1,6 +1,8 @@
 #! /usr/bin/env node
 export { Kline } from './types';
 export { getKline } from './klines';
-import { runPrompt } from './cli';
+import { runCommand } from './cli';
 
-runPrompt();
+if (require.main === module) {
+  runCommand();
+}
