@@ -1,24 +1,24 @@
-# binance-historic
+# binance-history
 
 Utility to retrieve historical data from Binance.
 
-![Alt Text](https://raw.githubusercontent.com/maxgfr/binance-historic/main/.github/assets/binance-historic.gif)
+![Alt Text](https://raw.githubusercontent.com/maxgfr/binance-history/main/.github/assets/main.gif)
 
 ## Usage
 
 ### With the cli
 
 ```sh
-npm install -g binance-historic
-binance-historic download
+npm install -g binance-history
+binance-history download
 # or
-npx binance-historic download
+npx binance-history download
 ```
 
 ### With the library
 
 ```ts
-import { getKline, Kline } from 'binance-historic';
+import { getKline, Kline } from 'binance-history';
 
 const result: Array<Kline> = await getKline(
   'ETHUSDT',
