@@ -1,5 +1,5 @@
 {
-  "name": "binance-historical",
+  "name": "binance-history",
   "version": "1.5.4",
   "author": "maxgfr",
   "license": "MIT",
@@ -7,17 +7,17 @@
   "description": "Download historical klines from binance api",
   "repository": {
     "type": "git",
-    "url": "https://github.com/maxgfr/binance-historical.git"
+    "url": "https://github.com/maxgfr/binance-history.git"
   },
   "bugs": {
-    "url": "https://github.com/maxgfr/binance-historical/issues"
+    "url": "https://github.com/maxgfr/binance-history/issues"
   },
-  "homepage": "https://github.com/maxgfr/binance-historical#readme",
+  "homepage": "https://github.com/maxgfr/binance-history#readme",
   "files": [
     "build"
   ],
   "bin": {
-    "binance-historical": "./build/index.js"
+    "binance-history": "./build/index.js"
   },
   "keywords": [
     "node",

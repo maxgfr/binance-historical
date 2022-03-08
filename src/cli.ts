@@ -89,7 +89,7 @@ export async function runCommand() {
   const program = new Command();
 
   program
-    .name('binance-historical')
+    .name('binance-history')
     .description('Utility to download historical klines from binance');
 
   program
