@@ -11,7 +11,7 @@ Utility to retrieve historical data from Binance.
 ```sh
 npm install -g binance-history
 binance-history download
-# or
+# or by using npx
 npx binance-history download
 ```
 
