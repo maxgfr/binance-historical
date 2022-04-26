@@ -45,7 +45,7 @@
     "release": "semantic-release"
   },
   "dependencies": {
-    "axios": "0.27.0",
+    "axios": "0.27.1",
     "commander": "^9.0.0",
     "prompts": "2.4.2"
   },
@@ -56,7 +56,7 @@
     "@semantic-release/npm": "^9.0.1",
     "@semantic-release/release-notes-generator": "^10.0.3",
     "@swc/cli": "0.1.57",
-    "@swc/core": "1.2.171",
+    "@swc/core": "1.2.172",
     "@swc/jest": "0.2.20",
     "@types/jest": "27.4.1",
     "@types/node": "16.11.29",
@@ -66,7 +66,7 @@
     "eslint": "8.14.0",
     "eslint-config-prettier": "8.5.0",
     "eslint-plugin-jest": "26.1.5",
-    "jest": "28.0.0",
+    "jest": "28.0.1",
     "nodemon": "2.0.15",
     "prettier": "2.6.2",
     "rimraf": "3.0.2",
