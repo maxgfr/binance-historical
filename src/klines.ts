@@ -12,8 +12,8 @@ export async function getKline(
   interval: BinanceInterval,
   startDate: Date,
   endDate: Date,
-  limit = 1000,
-  source = 'api'
+  source = 'api',
+  limit = 1000
 ): Promise<Array<Kline>> {
   if (startDate.getTime() > endDate.getTime()) {
     throw new Error('Start date must be before end date');
