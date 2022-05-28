@@ -65,7 +65,7 @@
     "@typescript-eslint/parser": "5.26.0",
     "eslint": "8.16.0",
     "eslint-config-prettier": "8.5.0",
-    "eslint-plugin-jest": "26.2.2",
+    "eslint-plugin-jest": "26.3.0",
     "jest": "28.1.0",
     "nodemon": "2.0.16",
     "prettier": "2.6.2",
