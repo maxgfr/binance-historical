@@ -67,7 +67,7 @@
     "eslint-config-prettier": "8.5.0",
     "eslint-plugin-jest": "26.5.3",
     "jest": "28.1.1",
-    "nodemon": "2.0.16",
+    "nodemon": "2.0.18",
     "prettier": "2.7.1",
     "rimraf": "3.0.2",
     "semantic-release": "19.0.3",
