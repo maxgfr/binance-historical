@@ -40,7 +40,8 @@ export async function getKline(
       data = [...data, ...response.data];
     }
   }
-
+  
+  if (data.length) --data.length;
   return data.map((item) => ({
     openTime: item[0],
     open: item[1],
