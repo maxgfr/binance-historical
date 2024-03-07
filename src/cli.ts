@@ -67,10 +67,8 @@ async function processUserInformations() {
     return;
   }
   const kLines = await getKline(pair, interval, startDate, endDate).catch(
-    () => {
-      console.log(
-        'Error with binance-api, we cannot get klines for this period or pair 😅',
-      );
+    (error) => {
+      console.error(error);
     },
   );
   if (kLines) {

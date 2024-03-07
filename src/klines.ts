@@ -60,6 +60,8 @@ export async function getKline(
     }));
   } catch (error) {
     console.error(error);
-    throw new Error('Error fetching klines');
+    throw new Error(
+      'Error with binance-api, we cannot get klines for this period or pair 😅',
+    );
   }
 }
