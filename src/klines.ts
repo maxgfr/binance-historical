@@ -42,7 +42,24 @@ export async function getKline(
         data = [...data, ...response.data];
       }
     }
-  } catch (error: any) {
-    throw new Error(JSON.stringify(error));
+
+    if (data.length) --data.length;
+    return data.map((item) => ({
+      openTime: item[0],
+      open: item[1],
+      high: item[2],
+      low: item[3],
+      close: item[4],
+      volume: item[5],
+      closeTime: item[6],
+      quoteAssetVolume: item[7],
+      trades: item[8],
+      takerBaseAssetVolume: item[9],
+      takerQuoteAssetVolume: item[10],
+      ignored: item[11],
+    }));
+  } catch (error) {
+    console.error(error);
+    throw new Error('Error fetching klines');
   }
 }
