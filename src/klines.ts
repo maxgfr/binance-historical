@@ -13,7 +13,8 @@ export async function getKline(
   startDate: Date,
   endDate: Date,
   source = 'api',
-  limit = 1000
+  version = 'v3',
+  limit = 1000,
 ): Promise<Array<Kline>> {
   if (startDate.getTime() > endDate.getTime()) {
     throw new Error('Start date must be before end date');
@@ -35,12 +36,13 @@ export async function getKline(
     if (i + 1 !== divisions.length) {
       const start = divisions[i];
       const end = divisions[i + 1];
-      const url = `https://${source}.binance.com/${source}/v1/klines?symbol=${pair}&interval=${interval}&startTime=${start}&endTime=${end}&limit=${limit}`;
+      const url = `https://${source}.binance.com/${source}/${version}/klines?symbol=${pair}&interval=${interval}&startTime=${start}&endTime=${end}&limit=${limit}`;
+      console.log(url);
       const response: BinanceResponse = await axios.get(url);
       data = [...data, ...response.data];
     }
   }
-  
+
   if (data.length) --data.length;
   return data.map((item) => ({
     openTime: item[0],
