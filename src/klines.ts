@@ -38,7 +38,6 @@ export async function getKline(
         const start = divisions[i];
         const end = divisions[i + 1];
         const url = `https://${source}.binance.com/${source}/${version}/klines?symbol=${pair}&interval=${interval}&startTime=${start}&endTime=${end}&limit=${limit}`;
-        console.log(url);
         const response: BinanceResponse = await axios.get(url);
         data = [...data, ...response.data];
       }
