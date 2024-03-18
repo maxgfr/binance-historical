@@ -50,7 +50,7 @@
     "prompts": "2.4.2"
   },
   "devDependencies": {
-    "@semantic-release/commit-analyzer": "^11.0.0",
+    "@semantic-release/commit-analyzer": "^12.0.0",
     "@semantic-release/git": "^10.0.1",
     "@semantic-release/github": "10.0.2",
     "@semantic-release/npm": "^12.0.0",
