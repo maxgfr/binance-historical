@@ -59,7 +59,7 @@
     "@swc/core": "1.4.13",
     "@swc/jest": "0.2.36",
     "@types/jest": "29.5.12",
-    "@types/node": "20.12.6",
+    "@types/node": "20.12.7",
     "@types/prompts": "2.4.9",
     "@typescript-eslint/eslint-plugin": "7.6.0",
     "@typescript-eslint/parser": "7.6.0",
@@ -70,7 +70,7 @@
     "nodemon": "3.1.0",
     "prettier": "3.2.5",
     "rimraf": "5.0.5",
-    "semantic-release": "23.0.7",
+    "semantic-release": "23.0.8",
     "ts-jest": "29.1.2",
     "ts-node": "10.9.2",
     "typescript": "5.4.4"
