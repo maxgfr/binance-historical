@@ -59,7 +59,7 @@
     "@swc/core": "1.7.28",
     "@swc/jest": "0.2.36",
     "@types/jest": "29.5.13",
-    "@types/node": "20.16.8",
+    "@types/node": "20.16.9",
     "@types/prompts": "2.4.9",
     "@typescript-eslint/eslint-plugin": "7.18.0",
     "@typescript-eslint/parser": "7.18.0",
