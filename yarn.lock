@@ -1409,10 +1409,10 @@
   dependencies:
     undici-types "~5.26.4"
 
-"@types/node@20.17.7":
-  version "20.17.7"
-  resolved "https://registry.yarnpkg.com/@types/node/-/node-20.17.7.tgz#790151a28c5a172773d95d53a0c23d3c59a883c4"
-  integrity sha512-sZXXnpBFMKbao30dUAvzKbdwA2JM1fwUtVEq/kxKuPI5mMwZiRElCpTXb0Biq/LMEVpXDZL5G5V0RPnxKeyaYg==
+"@types/node@20.17.8":
+  version "20.17.8"
+  resolved "https://registry.yarnpkg.com/@types/node/-/node-20.17.8.tgz#42748cdb169adf5be7c9760604c72820c7b7d560"
+  integrity sha512-ahz2g6/oqbKalW9sPv6L2iRbhLnojxjYWspAqhjvqSWBgGebEJT5GvRmk0QXPj3sbC6rU0GTQjPLQkmR8CObvA==
   dependencies:
     undici-types "~6.19.2"
 
@@ -1867,10 +1867,10 @@ asynckit@^0.4.0:
   resolved "https://registry.yarnpkg.com/asynckit/-/asynckit-0.4.0.tgz#c79ed97f7f34cb8f2ba1bc9790bcc366474b4b79"
   integrity sha512-Oei9OH4tRh0YqU3GxhX79dM/mwVgvbZJaSNaRk+bshkj0S5cfHcgYakreBjrHwatXKbz+IoIdYLxrKim2MjW0Q==
 
-axios@1.7.7:
-  version "1.7.7"
-  resolved "https://registry.yarnpkg.com/axios/-/axios-1.7.7.tgz#2f554296f9892a72ac8d8e4c5b79c14a91d0a47f"
-  integrity sha512-S4kL7XrjgBmvdGut0sN3yJxqYzrDOnivkBiN0OFs6hLiUam3UPvswUo0kqGyhqUZGEOytHyumEdXsAkgCOUf3Q==
+axios@1.7.8:
+  version "1.7.8"
+  resolved "https://registry.yarnpkg.com/axios/-/axios-1.7.8.tgz#1997b1496b394c21953e68c14aaa51b7b5de3d6e"
+  integrity sha512-Uu0wb7KNqK2t5K+YQyVCLM76prD5sRFjKHbJYCP1J7JFGEQ6nN7HWn9+04LAeiJ3ji54lgS/gZCH1oxyrf1SPw==
   dependencies:
     follow-redirects "^1.15.6"
     form-data "^4.0.0"
