@@ -1511,10 +1511,10 @@
   dependencies:
     undici-types "~5.26.4"
 
-"@types/node@20.17.18":
-  version "20.17.18"
-  resolved "https://registry.yarnpkg.com/@types/node/-/node-20.17.18.tgz#6dd466a38233c0a7f6ab032d1aab76dc7c8c346a"
-  integrity sha512-9kS0opXVV3dJ+C7HPhXfDlOdMu4cjJSZhlSxlDK39IxVRxBbuiYjCkLYSO9d5UYqTd4DApxRK9T1xJiTAkfA0w==
+"@types/node@20.17.19":
+  version "20.17.19"
+  resolved "https://registry.yarnpkg.com/@types/node/-/node-20.17.19.tgz#0f2869555719bef266ca6e1827fcdca903c1a697"
+  integrity sha512-LEwC7o1ifqg/6r2gn9Dns0f1rhK+fPFDoMiceTJ6kWmVk6bgXBI/9IOWfVan4WiAavK9pIVWdX0/e3J+eEUh5A==
   dependencies:
     undici-types "~6.19.2"
 
