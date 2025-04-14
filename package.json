@@ -56,7 +56,7 @@
     "@semantic-release/npm": "^12.0.0",
     "@semantic-release/release-notes-generator": "^13.0.0",
     "@swc/cli": "0.6.0",
-    "@swc/core": "1.11.20",
+    "@swc/core": "1.11.21",
     "@swc/jest": "0.2.37",
     "@types/jest": "29.5.14",
     "@types/node": "20.17.30",
