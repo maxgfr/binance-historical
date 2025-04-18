@@ -1277,10 +1277,10 @@
   dependencies:
     "@sinonjs/commons" "^3.0.0"
 
-"@swc/cli@0.7.2":
-  version "0.7.2"
-  resolved "https://registry.yarnpkg.com/@swc/cli/-/cli-0.7.2.tgz#dc64d70dc61b0c1a55ba6804ae9d42e049b95fdf"
-  integrity sha512-B73b2Orrd0tauaX3Jct9MxkAI79U3OMHzRB++x2wfyq+JPjgC6foJK6zyY2JI0vsTlaTbGpx9+hsowTQ8RtQFA==
+"@swc/cli@0.7.3":
+  version "0.7.3"
+  resolved "https://registry.yarnpkg.com/@swc/cli/-/cli-0.7.3.tgz#853d9b997bdfb9f58ba5dcb8e23e82ac5dfd8d53"
+  integrity sha512-rnVXNnlURjdOuPaBIwZ3TmBA44BF/eP0j154LanlgPEYfau74ige7cpKlKkZr1IBqMOG99lAnYNxQipDWA3hdg==
   dependencies:
     "@swc/counter" "^0.1.3"
     "@xhmikosr/bin-wrapper" "^13.0.5"
