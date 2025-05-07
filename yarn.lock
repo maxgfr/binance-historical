@@ -1277,10 +1277,10 @@
   dependencies:
     "@sinonjs/commons" "^3.0.0"
 
-"@swc/cli@0.7.4":
-  version "0.7.4"
-  resolved "https://registry.yarnpkg.com/@swc/cli/-/cli-0.7.4.tgz#9de869656c2cbfc7a7b4b8f5e6d58c3921d7d0f5"
-  integrity sha512-Z045IahIlmkjXTHubSmIRCjdhIfcZ5oLYPKr2B/E/1z6jQOLOI/aW7txNZS/ql8/8bBQOp3+sDrNH/OsE405NA==
+"@swc/cli@0.7.5":
+  version "0.7.5"
+  resolved "https://registry.yarnpkg.com/@swc/cli/-/cli-0.7.5.tgz#96bf34c0a3460c732358ef58603b2f412c68c16c"
+  integrity sha512-RlUYAxOhsecBB7qFVdDXhXXW3GDVxXpJx90q8Tlj+KuJVUPXViI7tNAvu54u3hbIZAL3LtrQKZHBWF6O5cXxZQ==
   dependencies:
     "@swc/counter" "^0.1.3"
     "@xhmikosr/bin-wrapper" "^13.0.5"
@@ -1511,10 +1511,10 @@
   dependencies:
     undici-types "~5.26.4"
 
-"@types/node@20.17.43":
-  version "20.17.43"
-  resolved "https://registry.yarnpkg.com/@types/node/-/node-20.17.43.tgz#66e6923e8e5a56317866c7813dc2b555c158332a"
-  integrity sha512-DnDEcDUnVAUYSa7U03QvrXbj1MZj00xoyi/a3lRGkR/c7BFUnqv+OY9EUphMqXUKdZJEOmuzu2mm+LmCisnPow==
+"@types/node@20.17.44":
+  version "20.17.44"
+  resolved "https://registry.yarnpkg.com/@types/node/-/node-20.17.44.tgz#f8b971ee3a3aea6cce4a3fc0c44c782a80744df0"
+  integrity sha512-50sE4Ibb4BgUMxHrcJQSAU0Fu7fLcTdwcXwRzEF7wnVMWvImFLg2Rxc7SW0vpvaJm4wvhoWEZaQiPpBpocZiUA==
   dependencies:
     undici-types "~6.19.2"
 
