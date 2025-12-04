@@ -6,12 +6,17 @@ on:
     branches:
       - 'main'
 
+permissions:
+  contents: write # to be able to publish a GitHub release
+  issues: write # to be able to comment on released issues
+  pull-requests: write # to be able to comment on released pull requests
+  id-token: write # to enable use of OIDC for trusted publishing and npm provenance
+
 jobs:
   publish:
     runs-on: ubuntu-latest
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -25,3 +30,7 @@ jobs:
         run: yarn build
       - name: Release
         run: yarn release
+      - name: Configure npm for OIDC
+        run: npm install -g npm@11.6.1
+      - name: Publish to npm with OIDC
+        run: npm publish
