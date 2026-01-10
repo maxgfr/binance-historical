@@ -1,6 +1,6 @@
 # binance-historical
 
-Utility to retrieve historical data from Binance.
+Utility to retrieve historical data from Binance
 
 ![Alt Text](https://raw.githubusercontent.com/maxgfr/binance-historical/main/.github/assets/main.gif)
 
