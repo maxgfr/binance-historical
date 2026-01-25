@@ -7,59 +7,66 @@ on:
       - 'main'
 
 permissions:
-  contents: write # to be able to publish a GitHub release
-  issues: write # to be able to comment on released issues
-  pull-requests: write # to be able to comment on released pull requests
-  id-token: write # to enable use of OIDC for trusted publishing and npm provenance
+  contents: write
+  issues: write
+  pull-requests: write
+  id-token: write
 
 jobs:
-  publish:
+  release:
     runs-on: ubuntu-latest
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     outputs:
-      new_release_published: ${{ steps.get_release.outputs.published }}
-      new_release_version: ${{ steps.get_release.outputs.version }}
+      new_release_published: ${{ steps.check_release.outputs.new_release }}
+      new_release_version: ${{ steps.version_after.outputs.version }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
+
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
           node-version: '24'
-      - name: Install
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
         run: yarn install --frozen-lockfile
+
       - name: Build
         run: yarn build
-      - name: Get current version before release
+
+      - name: Get version before release
         id: version_before
         run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
-      - name: Release
-        run: yarn release
-      - name: Get release info
-        id: get_release
-        run: |
-          NEW_VERSION=$(node -p "require('./package.json').version")
-          OLD_VERSION=${{ steps.version_before.outputs.version }}
-          if [ "$NEW_VERSION" != "$OLD_VERSION" ]; then
-            echo "published=true" >> $GITHUB_OUTPUT
-            echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
-          else
-            echo "published=false" >> $GITHUB_OUTPUT
-            echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
-          fi
-      - name: Configure npm for OIDC
-        if: steps.get_release.outputs.published == 'true'
-        run: npm install -g npm@11.6.1
-      - name: Publish to npm with OIDC
-        if: steps.get_release.outputs.published == 'true'
-        run: npm publish
 
-  build-and-upload-binaries:
-    needs: publish
-    if: needs.publish.outputs.new_release_published == 'true'
+      - name: Semantic Release
+        run: yarn release
+
+      - name: Get version after release
+        id: version_after
+        run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+
+      - name: Check if new version was released
+        id: check_release
+        run: |
+          if [ "${{ steps.version_before.outputs.version }}" != "${{ steps.version_after.outputs.version }}" ]; then
+            echo "new_release=true" >> $GITHUB_OUTPUT
+            echo "✅ New version released: ${{ steps.version_after.outputs.version }}"
+          else
+            echo "new_release=false" >> $GITHUB_OUTPUT
+            echo "ℹ️ No new version released"
+          fi
+
+      - name: Publish to npm with OIDC
+        if: steps.check_release.outputs.new_release == 'true'
+        run: npm publish --provenance --access public
+
+  build-binaries:
+    needs: release
+    if: needs.release.outputs.new_release_published == 'true'
     strategy:
       matrix:
         include:
@@ -78,8 +85,10 @@ jobs:
 
     runs-on: ${{ matrix.os }}
     steps:
-      - name: Checkout
+      - name: Checkout release tag
         uses: actions/checkout@v6
+        with:
+          ref: v${{ needs.release.outputs.new_release_version }}
 
       - name: Set up Node.js
         uses: actions/setup-node@v6
@@ -102,10 +111,12 @@ jobs:
           name: ${{ matrix.output }}
           path: dist/${{ matrix.output }}
 
-  upload-release-assets:
-    needs: [publish, build-and-upload-binaries]
-    if: needs.publish.outputs.new_release_published == 'true'
+  upload-binaries:
+    needs: [release, build-binaries]
+    if: needs.release.outputs.new_release_published == 'true'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
@@ -130,7 +141,7 @@ jobs:
       - name: Upload binaries to release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ needs.publish.outputs.new_release_version }}
+          tag_name: v${{ needs.release.outputs.new_release_version }}
           files: |
             dist/binance-historical-linux-x64/binance-historical-linux-x64
             dist/binance-historical-macos-x64/binance-historical-macos-x64
