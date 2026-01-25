@@ -1,7 +1,11 @@
+import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
+import { join } from 'node:path';
+
 import {
   calculateNumberOfCall,
   divideInterval,
   intervalToSeconds,
+  saveKline,
 } from '../utils';
 
 describe('utils', () => {
@@ -73,5 +77,111 @@ describe('utils', () => {
         );
       },
     );
+  });
+
+  describe('saveKline', () => {
+    const testDir = join(__dirname, '../../test-output');
+    const testSubDir = join(testDir, 'nested/deep/folder');
+
+    afterEach(() => {
+      if (existsSync(testDir)) {
+        rmSync(testDir, { recursive: true, force: true });
+      }
+    });
+
+    it('should create directory automatically if it does not exist', () => {
+      const testFile = join(testSubDir, 'test.json');
+      const testData = [
+        {
+          openTime: 1609459200000,
+          open: '100.0',
+          high: '200.0',
+          low: '50.0',
+          close: '150.0',
+          volume: '1000.0',
+          closeTime: 1609545600000,
+          quoteAssetVolume: '100000.0',
+          trades: 100,
+          takerBaseAssetVolume: '1000.0',
+          takerQuoteAssetVolume: '100000.0',
+          ignored: '1000.0',
+        },
+      ];
+
+      expect(existsSync(testSubDir)).toBe(false);
+
+      saveKline(testFile, testData, 'json');
+
+      expect(existsSync(testSubDir)).toBe(true);
+      expect(existsSync(testFile)).toBe(true);
+
+      const content = JSON.parse(readFileSync(testFile, 'utf-8'));
+      expect(content).toEqual(testData);
+    });
+
+    it('should save JSON format correctly', () => {
+      if (!existsSync(testDir)) {
+        mkdirSync(testDir, { recursive: true });
+      }
+
+      const testFile = join(testDir, 'test.json');
+      const testData = [
+        {
+          openTime: 1609459200000,
+          open: '100.0',
+          high: '200.0',
+          low: '50.0',
+          close: '150.0',
+          volume: '1000.0',
+          closeTime: 1609545600000,
+          quoteAssetVolume: '100000.0',
+          trades: 100,
+          takerBaseAssetVolume: '1000.0',
+          takerQuoteAssetVolume: '100000.0',
+          ignored: '1000.0',
+        },
+      ];
+
+      saveKline(testFile, testData, 'json');
+
+      expect(existsSync(testFile)).toBe(true);
+      const content = JSON.parse(readFileSync(testFile, 'utf-8'));
+      expect(content).toEqual(testData);
+    });
+
+    it('should save CSV format correctly', () => {
+      if (!existsSync(testDir)) {
+        mkdirSync(testDir, { recursive: true });
+      }
+
+      const testFile = join(testDir, 'test.csv');
+      const testData = [
+        {
+          openTime: 1609459200000,
+          open: '100.0',
+          high: '200.0',
+          low: '50.0',
+          close: '150.0',
+          volume: '1000.0',
+          closeTime: 1609545600000,
+          quoteAssetVolume: '100000.0',
+          trades: 100,
+          takerBaseAssetVolume: '1000.0',
+          takerQuoteAssetVolume: '100000.0',
+          ignored: '1000.0',
+        },
+      ];
+
+      saveKline(testFile, testData, 'csv');
+
+      expect(existsSync(testFile)).toBe(true);
+      const content = readFileSync(testFile, 'utf-8');
+      expect(content).toContain(
+        'openTime,open,high,low,close,volume,closeTime,quoteAssetVolume,trades,takerBaseAssetVolume,takerQuoteAssetVolume,ignored',
+      );
+      expect(content).toContain(
+        '1609459200000,100.0,200.0,50.0,150.0,1000.0,1609545600000,100000.0,100,1000.0,100000.0,1000.0',
+      );
+    });
   });
 });

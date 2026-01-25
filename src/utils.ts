@@ -45,6 +45,12 @@ export const saveKline = (
 ): void => {
   const content =
     format === 'csv' ? convertToCSV(jsonArray) : JSON.stringify(jsonArray, null, 2);
+
+  const dir = fileName.substring(0, fileName.lastIndexOf('/'));
+  if (dir && !fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+
   fs.writeFileSync(fileName, content);
 };
 

@@ -1,5 +1,22 @@
 import { Command } from 'commander';
 
+const VALID_INTERVALS = [
+  '1m',
+  '3m',
+  '5m',
+  '15m',
+  '30m',
+  '1h',
+  '2h',
+  '4h',
+  '6h',
+  '8h',
+  '12h',
+  '1d',
+  '3d',
+  '1w',
+];
+
 describe('CLI Options', () => {
   let program: Command;
 
@@ -7,16 +24,12 @@ describe('CLI Options', () => {
     program = new Command();
     program
       .name('binance-historical')
-      .description('Utility to download historical klines from Binance')
-      .version('1.0.0');
-
-    program
-      .command('download')
-      .description('Download historical klines from Binance API')
+      .description('Download historical klines from Binance')
+      .version('1.0.0')
       .option('-p, --pair <symbol>', 'Trading pair (e.g., BTCUSDT, ETHUSDT)')
       .option(
         '-i, --interval <interval>',
-        'Kline interval (1m, 3m, 5m, 15m, 30m, 1h, 2h, 4h, 6h, 8h, 12h, 1d, 3d, 1w)',
+        `Kline interval (${VALID_INTERVALS.join(', ')})`,
       )
       .option('-s, --start <date>', 'Start date (YYYY-MM-DD or ISO 8601)')
       .option('-e, --end <date>', 'End date (YYYY-MM-DD or ISO 8601)')
@@ -29,80 +42,80 @@ describe('CLI Options', () => {
 
   describe('Option Parsing', () => {
     it('should parse pair option', () => {
-      program.parse(['node', 'test', 'download', '--pair', 'BTCUSDT']);
-      const options = program.commands[0].opts();
+      program.parse(['node', 'test', '--pair', 'BTCUSDT']);
+      const options = program.opts();
       expect(options.pair).toBe('BTCUSDT');
     });
 
     it('should parse short pair option', () => {
-      program.parse(['node', 'test', 'download', '-p', 'ETHUSDT']);
-      const options = program.commands[0].opts();
+      program.parse(['node', 'test', '-p', 'ETHUSDT']);
+      const options = program.opts();
       expect(options.pair).toBe('ETHUSDT');
     });
 
     it('should parse interval option', () => {
-      program.parse(['node', 'test', 'download', '--interval', '1h']);
-      const options = program.commands[0].opts();
+      program.parse(['node', 'test', '--interval', '1h']);
+      const options = program.opts();
       expect(options.interval).toBe('1h');
     });
 
     it('should parse short interval option', () => {
-      program.parse(['node', 'test', 'download', '-i', '4h']);
-      const options = program.commands[0].opts();
+      program.parse(['node', 'test', '-i', '4h']);
+      const options = program.opts();
       expect(options.interval).toBe('4h');
     });
 
     it('should parse start date option', () => {
-      program.parse(['node', 'test', 'download', '--start', '2020-01-01']);
-      const options = program.commands[0].opts();
+      program.parse(['node', 'test', '--start', '2020-01-01']);
+      const options = program.opts();
       expect(options.start).toBe('2020-01-01');
     });
 
     it('should parse short start date option', () => {
-      program.parse(['node', 'test', 'download', '-s', '2020-01-01']);
-      const options = program.commands[0].opts();
+      program.parse(['node', 'test', '-s', '2020-01-01']);
+      const options = program.opts();
       expect(options.start).toBe('2020-01-01');
     });
 
     it('should parse end date option', () => {
-      program.parse(['node', 'test', 'download', '--end', '2020-12-31']);
-      const options = program.commands[0].opts();
+      program.parse(['node', 'test', '--end', '2020-12-31']);
+      const options = program.opts();
       expect(options.end).toBe('2020-12-31');
     });
 
     it('should parse short end date option', () => {
-      program.parse(['node', 'test', 'download', '-e', '2020-12-31']);
-      const options = program.commands[0].opts();
+      program.parse(['node', 'test', '-e', '2020-12-31']);
+      const options = program.opts();
       expect(options.end).toBe('2020-12-31');
     });
 
     it('should parse output path option', () => {
-      program.parse(['node', 'test', 'download', '--output', './data/']);
-      const options = program.commands[0].opts();
+      program.parse(['node', 'test', '--output', './data/']);
+      const options = program.opts();
       expect(options.output).toBe('./data/');
     });
 
     it('should parse short output path option', () => {
-      program.parse(['node', 'test', 'download', '-o', './data/']);
-      const options = program.commands[0].opts();
+      program.parse(['node', 'test', '-o', './data/']);
+      const options = program.opts();
       expect(options.output).toBe('./data/');
     });
 
     it('should parse format option', () => {
-      program.parse(['node', 'test', 'download', '--format', 'csv']);
-      const options = program.commands[0].opts();
+      program.parse(['node', 'test', '--format', 'csv']);
+      const options = program.opts();
       expect(options.format).toBe('csv');
     });
 
     it('should parse short format option', () => {
-      program.parse(['node', 'test', 'download', '-f', 'csv']);
-      const options = program.commands[0].opts();
+      program.parse(['node', 'test', '-f', 'csv']);
+      const options = program.opts();
       expect(options.format).toBe('csv');
     });
 
     it('should use json as default format', () => {
-      program.parse(['node', 'test', 'download']);
-      const options = program.commands[0].opts();
+      program.parse(['node', 'test']);
+      const options = program.opts();
       expect(options.format).toBe('json');
     });
 
@@ -110,7 +123,6 @@ describe('CLI Options', () => {
       program.parse([
         'node',
         'test',
-        'download',
         '-p',
         'BTCUSDT',
         '-i',
@@ -124,7 +136,7 @@ describe('CLI Options', () => {
         '-f',
         'csv',
       ]);
-      const options = program.commands[0].opts();
+      const options = program.opts();
       expect(options.pair).toBe('BTCUSDT');
       expect(options.interval).toBe('1h');
       expect(options.start).toBe('2020-01-01');
@@ -134,28 +146,9 @@ describe('CLI Options', () => {
     });
   });
 
-  describe('Command Structure', () => {
-    it('should have download command', () => {
-      const downloadCommand = program.commands.find(
-        (cmd) => cmd.name() === 'download',
-      );
-      expect(downloadCommand).toBeDefined();
-    });
-
-    it('should have correct command description', () => {
-      const downloadCommand = program.commands.find(
-        (cmd) => cmd.name() === 'download',
-      );
-      expect(downloadCommand?.description()).toBe(
-        'Download historical klines from Binance API',
-      );
-    });
-
+  describe('Program Structure', () => {
     it('should have all required options', () => {
-      const downloadCommand = program.commands.find(
-        (cmd) => cmd.name() === 'download',
-      );
-      const options = downloadCommand?.options || [];
+      const options = program.options || [];
       const optionNames = options.map((opt) => opt.long);
 
       expect(optionNames).toContain('--pair');
@@ -167,10 +160,7 @@ describe('CLI Options', () => {
     });
 
     it('should have correct short options', () => {
-      const downloadCommand = program.commands.find(
-        (cmd) => cmd.name() === 'download',
-      );
-      const options = downloadCommand?.options || [];
+      const options = program.options || [];
       const shortOptions = options
         .map((opt) => opt.short)
         .filter((opt): opt is string => opt !== undefined);
@@ -191,7 +181,7 @@ describe('CLI Options', () => {
 
     it('should have correct program description', () => {
       expect(program.description()).toBe(
-        'Utility to download historical klines from Binance',
+        'Download historical klines from Binance',
       );
     });
 

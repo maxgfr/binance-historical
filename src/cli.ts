@@ -3,6 +3,8 @@ import { Command } from 'commander';
 import type { BinanceInterval, OutputFormat, PromptResult } from './types';
 import { getKline } from './klines';
 import { formatDate, saveKline } from './utils';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 const VALID_INTERVALS: BinanceInterval[] = [
   '1m',
@@ -295,16 +297,19 @@ async function processInteractive(): Promise<void> {
 export async function runCommand(): Promise<void> {
   const program = new Command();
 
-  program
-    .name('binance-historical')
-    .description('Utility to download historical klines from Binance')
-    .version(process.env.npm_package_version || '1.0.0');
+  let version = '1.0.0';
+  try {
+    const packageJsonPath = join(__dirname, '../package.json');
+    const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf-8'));
+    version = packageJson.version;
+  } catch {
+    // Fallback to default version if package.json cannot be read
+  }
 
   program
-    .command('download')
-    .description(
-      'Download historical klines from Binance API',
-    )
+    .name('binance-historical')
+    .description('Download historical klines from Binance')
+    .version(version)
     .option('-p, --pair <symbol>', 'Trading pair (e.g., BTCUSDT, ETHUSDT)')
     .option(
       '-i, --interval <interval>',
