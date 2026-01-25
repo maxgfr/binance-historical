@@ -17,9 +17,14 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    outputs:
+      new_release_published: ${{ steps.get_release.outputs.published }}
+      new_release_version: ${{ steps.get_release.outputs.version }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
@@ -28,9 +33,109 @@ jobs:
         run: yarn install --frozen-lockfile
       - name: Build
         run: yarn build
+      - name: Get current version before release
+        id: version_before
+        run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
       - name: Release
         run: yarn release
+      - name: Get release info
+        id: get_release
+        run: |
+          NEW_VERSION=$(node -p "require('./package.json').version")
+          OLD_VERSION=${{ steps.version_before.outputs.version }}
+          if [ "$NEW_VERSION" != "$OLD_VERSION" ]; then
+            echo "published=true" >> $GITHUB_OUTPUT
+            echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          else
+            echo "published=false" >> $GITHUB_OUTPUT
+            echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          fi
       - name: Configure npm for OIDC
+        if: steps.get_release.outputs.published == 'true'
         run: npm install -g npm@11.6.1
       - name: Publish to npm with OIDC
+        if: steps.get_release.outputs.published == 'true'
         run: npm publish
+
+  build-and-upload-binaries:
+    needs: publish
+    if: needs.publish.outputs.new_release_published == 'true'
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: node20-linux-x64
+            output: binance-historical-linux-x64
+          - os: macos-latest
+            target: node20-macos-x64
+            output: binance-historical-macos-x64
+          - os: macos-latest
+            target: node20-macos-arm64
+            output: binance-historical-macos-arm64
+          - os: windows-latest
+            target: node20-win-x64
+            output: binance-historical-win-x64.exe
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+          cache: 'yarn'
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Build TypeScript
+        run: yarn build
+
+      - name: Build binary
+        run: yarn pkg . --target ${{ matrix.target }} --output dist/${{ matrix.output }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.output }}
+          path: dist/${{ matrix.output }}
+
+  upload-release-assets:
+    needs: [publish, build-and-upload-binaries]
+    if: needs.publish.outputs.new_release_published == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+
+      - name: Display structure of downloaded files
+        run: ls -la dist/
+
+      - name: Create checksums
+        run: |
+          cd dist
+          for dir in */; do
+            for file in "$dir"*; do
+              if [ -f "$file" ]; then
+                sha256sum "$file" | sed "s|$dir||" >> checksums.txt
+              fi
+            done
+          done
+          cat checksums.txt
+
+      - name: Upload binaries to release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.publish.outputs.new_release_version }}
+          files: |
+            dist/binance-historical-linux-x64/binance-historical-linux-x64
+            dist/binance-historical-macos-x64/binance-historical-macos-x64
+            dist/binance-historical-macos-arm64/binance-historical-macos-arm64
+            dist/binance-historical-win-x64.exe/binance-historical-win-x64.exe
+            dist/checksums.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
