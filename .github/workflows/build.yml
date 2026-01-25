@@ -16,3 +16,12 @@ jobs:
         run: yarn
       - name: Build
         run: yarn build
+      - name: Test pkg compilation
+        run: |
+          yarn build:binary:linux
+          if [ ! -f dist/binance-historical-linux-x64 ]; then
+            echo "Binary not found!"
+            exit 1
+          fi
+          chmod +x dist/binance-historical-linux-x64
+          ./dist/binance-historical-linux-x64 --version
