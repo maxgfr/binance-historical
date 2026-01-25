@@ -46,10 +46,13 @@ export type BinanceResponseData = [
   string,
 ];
 
+export type OutputFormat = 'json' | 'csv';
+
 export type PromptResult = {
   pair: string;
   interval: BinanceInterval;
   startDate: Date;
   endDate: Date;
   fileName: string;
+  format: OutputFormat;
 };

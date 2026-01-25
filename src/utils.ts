@@ -1,9 +1,51 @@
-import { BinanceInterval, Kline } from './types';
+import type { BinanceInterval, Kline, OutputFormat } from './types';
 
 import fs = require('fs');
 
-export const saveKline = (fileName: string, jsonArray: Array<Kline>) => {
-  fs.writeFileSync(fileName, JSON.stringify(jsonArray, null, 2));
+const convertToCSV = (klines: Array<Kline>): string => {
+  const headers = [
+    'openTime',
+    'open',
+    'high',
+    'low',
+    'close',
+    'volume',
+    'closeTime',
+    'quoteAssetVolume',
+    'trades',
+    'takerBaseAssetVolume',
+    'takerQuoteAssetVolume',
+    'ignored',
+  ].join(',');
+
+  const rows = klines.map((kline) =>
+    [
+      kline.openTime,
+      kline.open,
+      kline.high,
+      kline.low,
+      kline.close,
+      kline.volume,
+      kline.closeTime,
+      kline.quoteAssetVolume,
+      kline.trades,
+      kline.takerBaseAssetVolume,
+      kline.takerQuoteAssetVolume,
+      kline.ignored,
+    ].join(','),
+  );
+
+  return [headers, ...rows].join('\n');
+};
+
+export const saveKline = (
+  fileName: string,
+  jsonArray: Array<Kline>,
+  format: OutputFormat = 'json',
+): void => {
+  const content =
+    format === 'csv' ? convertToCSV(jsonArray) : JSON.stringify(jsonArray, null, 2);
+  fs.writeFileSync(fileName, content);
 };
 
 export const formatDate = (date: Date, withHour = false): string => {

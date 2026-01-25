@@ -1,8 +1,8 @@
 import prompts from 'prompts';
-import type { PromptResult, BinanceInterval } from './types';
+import { Command } from 'commander';
+import type { BinanceInterval, OutputFormat, PromptResult } from './types';
 import { getKline } from './klines';
 import { formatDate, saveKline } from './utils';
-import { Command } from 'commander';
 
 const VALID_INTERVALS: BinanceInterval[] = [
   '1m',
@@ -68,6 +68,16 @@ const questions: Array<prompts.PromptObject> = [
     message: 'The path of the file that will be saved:',
     initial: `${process.cwd()}/`,
   },
+  {
+    type: 'select',
+    name: 'format',
+    message: 'Output format:',
+    choices: [
+      { title: 'JSON', value: 'json' },
+      { title: 'CSV', value: 'csv' },
+    ],
+    initial: 0,
+  },
 ];
 
 interface CliOptions {
@@ -76,10 +86,15 @@ interface CliOptions {
   start?: string;
   end?: string;
   output?: string;
+  format?: string;
 }
 
 function isValidInterval(interval: string): interval is BinanceInterval {
   return VALID_INTERVALS.includes(interval as BinanceInterval);
+}
+
+function isValidFormat(format: string): format is OutputFormat {
+  return format === 'json' || format === 'csv';
 }
 
 function parseDate(dateStr: string): Date | null {
@@ -122,6 +137,10 @@ function validateOptions(options: CliOptions): {
     }
   }
 
+  if (options.format && !isValidFormat(options.format)) {
+    errors.push(`Invalid format "${options.format}". Valid formats: json, csv`);
+  }
+
   return { valid: errors.length === 0, errors };
 }
 
@@ -131,14 +150,15 @@ function hasAllRequiredOptions(options: CliOptions): boolean {
     options.interval &&
     options.start &&
     options.end &&
-    options.output
+    options.output &&
+    options.format
   );
 }
 
 async function promptUser(): Promise<Partial<PromptResult>> {
-  const { pair, interval, startDate, endDate, fileName } =
+  const { pair, interval, startDate, endDate, fileName, format } =
     await prompts(questions);
-  return { pair, interval, startDate, endDate, fileName };
+  return { pair, interval, startDate, endDate, fileName, format };
 }
 
 async function promptMissingOptions(
@@ -187,6 +207,12 @@ async function promptMissingOptions(
     missingQuestions.push(questions[4]);
   }
 
+  if (options.format && isValidFormat(options.format)) {
+    providedValues.format = options.format;
+  } else {
+    missingQuestions.push(questions[5]);
+  }
+
   if (missingQuestions.length > 0) {
     const answers = await prompts(missingQuestions);
     return { ...providedValues, ...answers };
@@ -196,7 +222,7 @@ async function promptMissingOptions(
 }
 
 async function downloadKlines(config: PromptResult): Promise<void> {
-  const { pair, interval, startDate, endDate, fileName } = config;
+  const { pair, interval, startDate, endDate, fileName, format } = config;
 
   const kLines = await getKline(pair, interval, startDate, endDate).catch(
     (error) => {
@@ -206,10 +232,11 @@ async function downloadKlines(config: PromptResult): Promise<void> {
   );
 
   if (kLines) {
+    const extension = format === 'csv' ? 'csv' : 'json';
     const outputPath =
       fileName +
-      `${pair}_${interval}_${formatDate(startDate)}_${formatDate(endDate)}.json`;
-    saveKline(outputPath, kLines);
+      `${pair}_${interval}_${formatDate(startDate)}_${formatDate(endDate)}.${extension}`;
+    saveKline(outputPath, kLines, format);
     console.log(`Downloaded ${kLines.length} klines to ${outputPath}`);
   }
 }
@@ -229,8 +256,9 @@ async function processWithOptions(options: CliOptions): Promise<void> {
     const startDate = parseDate(options.start as string) as Date;
     const endDate = parseDate(options.end as string) as Date;
     const fileName = options.output as string;
+    const format = options.format as OutputFormat;
 
-    await downloadKlines({ pair, interval, startDate, endDate, fileName });
+    await downloadKlines({ pair, interval, startDate, endDate, fileName, format });
   } else {
     const result = await promptMissingOptions(options);
     if (
@@ -238,7 +266,8 @@ async function processWithOptions(options: CliOptions): Promise<void> {
       !result.interval ||
       !result.startDate ||
       !result.endDate ||
-      !result.fileName
+      !result.fileName ||
+      !result.format
     ) {
       console.error('Missing required information');
       process.exit(1);
@@ -254,7 +283,8 @@ async function processInteractive(): Promise<void> {
     !result.interval ||
     !result.startDate ||
     !result.endDate ||
-    !result.fileName
+    !result.fileName ||
+    !result.format
   ) {
     console.error('Missing required information');
     process.exit(1);
@@ -273,7 +303,7 @@ export async function runCommand(): Promise<void> {
   program
     .command('download')
     .description(
-      'Download a JSON file containing historical klines from Binance API',
+      'Download historical klines from Binance API',
     )
     .option('-p, --pair <symbol>', 'Trading pair (e.g., BTCUSDT, ETHUSDT)')
     .option(
@@ -286,6 +316,7 @@ export async function runCommand(): Promise<void> {
       '-o, --output <path>',
       'Output directory path (filename is auto-generated)',
     )
+    .option('-f, --format <format>', 'Output format (json, csv)', 'json')
     .action(async (options: CliOptions) => {
       const hasAnyOption =
         options.pair ||

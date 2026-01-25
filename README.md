@@ -43,18 +43,32 @@ binance-historical download \
   --interval 4h \
   --start 2024-01-01 \
   --end 2024-12-31 \
-  --output ./data/
+  --output ./data/ \
+  --format json
+```
+
+Export as CSV:
+
+```sh
+binance-historical download \
+  --pair ETHUSDT \
+  --interval 1h \
+  --start 2024-01-01 \
+  --end 2024-01-31 \
+  --output ./data/ \
+  --format csv
 ```
 
 #### CLI Options
 
 | Option | Alias | Description |
-|--------|-------|-------------|
+| ------ | ----- | ----------- |
 | `--pair <symbol>` | `-p` | Trading pair (e.g., BTCUSDT, ETHUSDT) |
 | `--interval <interval>` | `-i` | Kline interval (1m, 3m, 5m, 15m, 30m, 1h, 2h, 4h, 6h, 8h, 12h, 1d, 3d, 1w) |
 | `--start <date>` | `-s` | Start date (YYYY-MM-DD or ISO 8601) |
 | `--end <date>` | `-e` | End date (YYYY-MM-DD or ISO 8601) |
 | `--output <path>` | `-o` | Output directory path (filename is auto-generated) |
+| `--format <format>` | `-f` | Output format (json or csv, default: json) |
 | `--help` | `-h` | Display help |
 | `--version` | `-V` | Display version |
 
