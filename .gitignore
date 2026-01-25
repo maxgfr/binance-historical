@@ -21,6 +21,9 @@ node_modules/
 # Transpiled files
 build/
 
+# Binary distribution
+dist/
+
 # .env you know
 .env
 

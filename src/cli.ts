@@ -1,8 +1,25 @@
 import prompts from 'prompts';
-import { PromptResult } from './types';
+import type { PromptResult, BinanceInterval } from './types';
 import { getKline } from './klines';
 import { formatDate, saveKline } from './utils';
 import { Command } from 'commander';
+
+const VALID_INTERVALS: BinanceInterval[] = [
+  '1m',
+  '3m',
+  '5m',
+  '15m',
+  '30m',
+  '1h',
+  '2h',
+  '4h',
+  '6h',
+  '8h',
+  '12h',
+  '1d',
+  '3d',
+  '1w',
+];
 
 const questions: Array<prompts.PromptObject> = [
   {
@@ -53,49 +70,236 @@ const questions: Array<prompts.PromptObject> = [
   },
 ];
 
-async function promptUser(): Promise<Partial<PromptResult>> {
-  const { pair, interval, startDate, endDate, fileName } = await prompts(
-    questions,
+interface CliOptions {
+  pair?: string;
+  interval?: string;
+  start?: string;
+  end?: string;
+  output?: string;
+}
+
+function isValidInterval(interval: string): interval is BinanceInterval {
+  return VALID_INTERVALS.includes(interval as BinanceInterval);
+}
+
+function parseDate(dateStr: string): Date | null {
+  const date = new Date(dateStr);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+  return date;
+}
+
+function validateOptions(options: CliOptions): {
+  valid: boolean;
+  errors: string[];
+} {
+  const errors: string[] = [];
+
+  if (options.interval && !isValidInterval(options.interval)) {
+    errors.push(
+      `Invalid interval "${options.interval}". Valid intervals: ${VALID_INTERVALS.join(', ')}`,
+    );
+  }
+
+  if (options.start && !parseDate(options.start)) {
+    errors.push(
+      `Invalid start date "${options.start}". Use format: YYYY-MM-DD or ISO 8601`,
+    );
+  }
+
+  if (options.end && !parseDate(options.end)) {
+    errors.push(
+      `Invalid end date "${options.end}". Use format: YYYY-MM-DD or ISO 8601`,
+    );
+  }
+
+  if (options.start && options.end) {
+    const startDate = parseDate(options.start);
+    const endDate = parseDate(options.end);
+    if (startDate && endDate && startDate >= endDate) {
+      errors.push('Start date must be before end date');
+    }
+  }
+
+  return { valid: errors.length === 0, errors };
+}
+
+function hasAllRequiredOptions(options: CliOptions): boolean {
+  return !!(
+    options.pair &&
+    options.interval &&
+    options.start &&
+    options.end &&
+    options.output
   );
+}
+
+async function promptUser(): Promise<Partial<PromptResult>> {
+  const { pair, interval, startDate, endDate, fileName } =
+    await prompts(questions);
   return { pair, interval, startDate, endDate, fileName };
 }
 
-async function processUserInformations() {
-  const { pair, interval, startDate, endDate, fileName } = await promptUser();
-  if (!pair || !interval || !startDate || !endDate || !fileName) {
-    console.log('Missing informations 😭');
-    return;
+async function promptMissingOptions(
+  options: CliOptions,
+): Promise<Partial<PromptResult>> {
+  const providedValues: Partial<PromptResult> = {};
+  const missingQuestions: prompts.PromptObject[] = [];
+
+  if (options.pair) {
+    providedValues.pair = options.pair;
+  } else {
+    missingQuestions.push(questions[0]);
   }
+
+  if (options.interval && isValidInterval(options.interval)) {
+    providedValues.interval = options.interval;
+  } else {
+    missingQuestions.push(questions[1]);
+  }
+
+  if (options.start) {
+    const date = parseDate(options.start);
+    if (date) {
+      providedValues.startDate = date;
+    } else {
+      missingQuestions.push(questions[2]);
+    }
+  } else {
+    missingQuestions.push(questions[2]);
+  }
+
+  if (options.end) {
+    const date = parseDate(options.end);
+    if (date) {
+      providedValues.endDate = date;
+    } else {
+      missingQuestions.push(questions[3]);
+    }
+  } else {
+    missingQuestions.push(questions[3]);
+  }
+
+  if (options.output) {
+    providedValues.fileName = options.output;
+  } else {
+    missingQuestions.push(questions[4]);
+  }
+
+  if (missingQuestions.length > 0) {
+    const answers = await prompts(missingQuestions);
+    return { ...providedValues, ...answers };
+  }
+
+  return providedValues;
+}
+
+async function downloadKlines(config: PromptResult): Promise<void> {
+  const { pair, interval, startDate, endDate, fileName } = config;
+
   const kLines = await getKline(pair, interval, startDate, endDate).catch(
     (error) => {
-      console.error(error);
+      console.error('Error fetching klines:', error.message || error);
+      return null;
     },
   );
+
   if (kLines) {
-    saveKline(
+    const outputPath =
       fileName +
-        `${pair}_${interval}_${formatDate(startDate)}_${formatDate(
-          endDate,
-        )}.json`,
-      kLines,
-    );
-    console.log('Done 🎉');
+      `${pair}_${interval}_${formatDate(startDate)}_${formatDate(endDate)}.json`;
+    saveKline(outputPath, kLines);
+    console.log(`Downloaded ${kLines.length} klines to ${outputPath}`);
   }
 }
 
-export async function runCommand() {
+async function processWithOptions(options: CliOptions): Promise<void> {
+  const validation = validateOptions(options);
+  if (!validation.valid) {
+    for (const err of validation.errors) {
+      console.error(`Error: ${err}`);
+    }
+    process.exit(1);
+  }
+
+  if (hasAllRequiredOptions(options)) {
+    const pair = options.pair as string;
+    const interval = options.interval as BinanceInterval;
+    const startDate = parseDate(options.start as string) as Date;
+    const endDate = parseDate(options.end as string) as Date;
+    const fileName = options.output as string;
+
+    await downloadKlines({ pair, interval, startDate, endDate, fileName });
+  } else {
+    const result = await promptMissingOptions(options);
+    if (
+      !result.pair ||
+      !result.interval ||
+      !result.startDate ||
+      !result.endDate ||
+      !result.fileName
+    ) {
+      console.error('Missing required information');
+      process.exit(1);
+    }
+    await downloadKlines(result as PromptResult);
+  }
+}
+
+async function processInteractive(): Promise<void> {
+  const result = await promptUser();
+  if (
+    !result.pair ||
+    !result.interval ||
+    !result.startDate ||
+    !result.endDate ||
+    !result.fileName
+  ) {
+    console.error('Missing required information');
+    process.exit(1);
+  }
+  await downloadKlines(result as PromptResult);
+}
+
+export async function runCommand(): Promise<void> {
   const program = new Command();
 
   program
     .name('binance-historical')
-    .description('Utility to download historical klines from binance');
+    .description('Utility to download historical klines from Binance')
+    .version(process.env.npm_package_version || '1.0.0');
 
   program
     .command('download')
     .description(
-      'Download a JSON file which contains historical klines from binance api',
+      'Download a JSON file containing historical klines from Binance API',
     )
-    .action(() => processUserInformations());
+    .option('-p, --pair <symbol>', 'Trading pair (e.g., BTCUSDT, ETHUSDT)')
+    .option(
+      '-i, --interval <interval>',
+      `Kline interval (${VALID_INTERVALS.join(', ')})`,
+    )
+    .option('-s, --start <date>', 'Start date (YYYY-MM-DD or ISO 8601)')
+    .option('-e, --end <date>', 'End date (YYYY-MM-DD or ISO 8601)')
+    .option(
+      '-o, --output <path>',
+      'Output directory path (filename is auto-generated)',
+    )
+    .action(async (options: CliOptions) => {
+      const hasAnyOption =
+        options.pair ||
+        options.interval ||
+        options.start ||
+        options.end ||
+        options.output;
+
+      if (hasAnyOption) {
+        await processWithOptions(options);
+      } else {
+        await processInteractive();
+      }
+    });
 
   program.parse();
 }

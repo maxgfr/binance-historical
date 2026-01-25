@@ -4,19 +4,70 @@ Utility to retrieve historical data from Binance
 
 ![Alt Text](https://raw.githubusercontent.com/maxgfr/binance-historical/main/.github/assets/main.gif)
 
-## Usage
+## Installation
 
-### With the cli
+### Via Homebrew (macOS/Linux)
+
+```sh
+brew tap maxgfr/tap
+brew install binance-historical
+```
+
+### Via npm
 
 ```sh
 npm install -g binance-historical
-binance-historical download
-
-# or by using npx
-npx binance-historical download
 ```
 
-### With the library
+### Download binary
+
+Download the latest binary for your platform from the [releases page](https://github.com/maxgfr/binance-historical/releases).
+
+## Usage
+
+### CLI
+
+#### Interactive mode
+
+```sh
+binance-historical download
+```
+
+#### Non-interactive mode
+
+Pass all options as arguments:
+
+```sh
+binance-historical download \
+  --pair BTCUSDT \
+  --interval 4h \
+  --start 2024-01-01 \
+  --end 2024-12-31 \
+  --output ./data/
+```
+
+#### CLI Options
+
+| Option | Alias | Description |
+|--------|-------|-------------|
+| `--pair <symbol>` | `-p` | Trading pair (e.g., BTCUSDT, ETHUSDT) |
+| `--interval <interval>` | `-i` | Kline interval (1m, 3m, 5m, 15m, 30m, 1h, 2h, 4h, 6h, 8h, 12h, 1d, 3d, 1w) |
+| `--start <date>` | `-s` | Start date (YYYY-MM-DD or ISO 8601) |
+| `--end <date>` | `-e` | End date (YYYY-MM-DD or ISO 8601) |
+| `--output <path>` | `-o` | Output directory path (filename is auto-generated) |
+| `--help` | `-h` | Display help |
+| `--version` | `-V` | Display version |
+
+#### Hybrid mode
+
+You can also provide some options and be prompted for the rest:
+
+```sh
+binance-historical download --pair ETHUSDT --interval 1h
+# You will be prompted for start date, end date, and output path
+```
+
+### Library
 
 ```ts
 import { getKline, Kline } from 'binance-historical';

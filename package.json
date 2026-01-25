@@ -19,6 +19,19 @@
   "bin": {
     "binance-historical": "./build/index.js"
   },
+  "pkg": {
+    "scripts": "build/**/*.js",
+    "assets": [
+      "node_modules/axios/dist/node/axios.cjs"
+    ],
+    "targets": [
+      "node20-macos-x64",
+      "node20-macos-arm64",
+      "node20-linux-x64",
+      "node20-win-x64"
+    ],
+    "outputPath": "dist"
+  },
   "keywords": [
     "node",
     "typescript",
@@ -42,7 +55,12 @@
     "build:swc:watch": "npm run build:swc -- -w",
     "lint": "eslint ./src --ext .ts",
     "prettier": "prettier --write './src/**/*.{ts,js,json}'",
-    "release": "semantic-release"
+    "release": "semantic-release",
+    "build:binaries": "pkg . --out-path dist",
+    "build:binary:macos": "pkg . --target node20-macos-x64 --output dist/binance-historical-macos-x64",
+    "build:binary:macos-arm": "pkg . --target node20-macos-arm64 --output dist/binance-historical-macos-arm64",
+    "build:binary:linux": "pkg . --target node20-linux-x64 --output dist/binance-historical-linux-x64",
+    "build:binary:win": "pkg . --target node20-win-x64 --output dist/binance-historical-win-x64.exe"
   },
   "dependencies": {
     "axios": "1.13.2",
@@ -50,6 +68,7 @@
     "prompts": "2.4.2"
   },
   "devDependencies": {
+    "@yao-pkg/pkg": "^6.3.0",
     "@semantic-release/commit-analyzer": "^12.0.0",
     "@semantic-release/git": "^10.0.1",
     "@semantic-release/github": "10.3.5",
