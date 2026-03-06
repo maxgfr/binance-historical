@@ -9,8 +9,7 @@ Utility to retrieve historical data from Binance
 ### Via Homebrew (macOS/Linux)
 
 ```sh
-brew tap maxgfr/tap
-brew install binance-historical
+brew install maxgfr/tap/binance-historical
 ```
 
 ### Via npm
