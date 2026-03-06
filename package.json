@@ -63,7 +63,7 @@
     "build:binary:win": "pkg . --target node20-win-x64 --output dist/binance-historical-win-x64.exe"
   },
   "dependencies": {
-    "axios": "1.13.2",
+    "axios": "1.13.5",
     "commander": "^12.0.0",
     "prompts": "2.4.2"
   },
