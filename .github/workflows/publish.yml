@@ -110,7 +110,7 @@ jobs:
         run: pnpm run build
 
       - name: Build binary
-        run: pnpm pkg . --target ${{ matrix.target }} --output dist/${{ matrix.output }}
+        run: pnpm exec pkg . --target ${{ matrix.target }} --output dist/${{ matrix.output }}
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
