@@ -76,8 +76,7 @@ binance-historical download \
 You can also provide some options and be prompted for the rest:
 
 ```sh
-binance-historical download --pair ETHUSDT --interval 1h
-# You will be prompted for start date, end date, and output path
+binance-historical download --pair ETHUSDT --interval 1h # Then you will be prompted for start date, end date, and output path
 ```
 
 ### Library
