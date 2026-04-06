@@ -52,7 +52,7 @@
     "build": "rimraf build && tsc -p tsconfig.json",
     "build:watch": "tsc -w -p tsconfig.json",
     "build:swc": "swc ./src -d build",
-    "build:swc:watch": "npm run build:swc -- -w",
+    "build:swc:watch": "pnpm run build:swc -- -w",
     "lint": "eslint ./src --ext .ts",
     "prettier": "prettier --write './src/**/*.{ts,js,json}'",
     "release": "semantic-release",
@@ -93,5 +93,6 @@
     "ts-jest": "29.4.6",
     "ts-node": "10.9.2",
     "typescript": "5.9.3"
-  }
+  },
+  "packageManager": "pnpm@10.8.1"
 }
