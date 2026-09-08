@@ -107,6 +107,12 @@ export async function completeOptions(
       `Missing required options: ${missing.map((k) => `--${k}`).join(', ')}`,
     );
   if (!missing.length) return options;
+  const defaultEnd = options.end ?? new Date().toISOString().slice(0, 10);
+  const defaultStart = new Date(
+    parseDate(defaultEnd).getTime() - 30 * 86400000,
+  )
+    .toISOString()
+    .slice(0, 10);
   const questions: prompts.PromptObject[] = [
     {
       name: 'pair',
@@ -128,11 +134,13 @@ export async function completeOptions(
       name: 'start',
       type: 'text',
       message: 'Inclusive start (YYYY-MM-DD or ISO with timezone):',
+      initial: defaultStart,
     },
     {
       name: 'end',
       type: 'text',
       message: 'Exclusive end (YYYY-MM-DD or ISO with timezone):',
+      initial: defaultEnd,
     },
     {
       name: 'output',

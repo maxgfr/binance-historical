@@ -72,6 +72,10 @@ binance-historical download --pair BTCUSD_PERP --market coin-m \
 
 `binance-historical download` prompts in a terminal. Partial options trigger
 hybrid mode. Without a terminal, missing required parameters fail immediately.
+The date prompts suggest the last 30 complete UTC days: the start is 30 days
+before today and the exclusive end is today at midnight UTC. Press Enter to
+accept either date or type a replacement. If `--end` is supplied, the suggested
+start is 30 days before that date. Non-interactive downloads require explicit dates.
 The historical invocation without `download` remains supported. Human progress
 goes to stderr in terminals; JSON reports have no progress noise.
 
