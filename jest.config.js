@@ -4,6 +4,9 @@ module.exports = {
     '^.+\\.(t|j)s$': [
       '@swc/jest',
       {
+        swcrc: false,
+        minify: false,
+        sourceMaps: 'inline',
         jsc: {
           target: 'es2021',
         },

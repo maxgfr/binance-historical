@@ -42,6 +42,14 @@ jobs:
       - name: Build
         run: pnpm run build
 
+      - name: Validate before release
+        run: |
+          pnpm run lint
+          pnpm test --runInBand
+          pnpm run test:process
+          pnpm run test:package
+          pnpm run test:skill
+
       - name: Get version before release
         id: version_before
         run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT

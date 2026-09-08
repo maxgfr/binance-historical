@@ -1,6 +1,7 @@
 import type { BinanceInterval, Kline, OutputFormat } from './types';
 
 import fs = require('fs');
+import { dirname } from 'node:path';
 
 const convertToCSV = (klines: Array<Kline>): string => {
   const headers = [
@@ -44,9 +45,11 @@ export const saveKline = (
   format: OutputFormat = 'json',
 ): void => {
   const content =
-    format === 'csv' ? convertToCSV(jsonArray) : JSON.stringify(jsonArray, null, 2);
+    format === 'csv'
+      ? convertToCSV(jsonArray)
+      : JSON.stringify(jsonArray, null, 2);
 
-  const dir = fileName.substring(0, fileName.lastIndexOf('/'));
+  const dir = dirname(fileName);
   if (dir && !fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
@@ -68,6 +71,8 @@ export const formatDate = (date: Date, withHour = false): string => {
 
 export function intervalToSeconds(interval: BinanceInterval): number {
   switch (interval) {
+    case '1s':
+      return 1;
     case '1m':
       return 60;
     case '3m':

@@ -1,6 +1,6 @@
 name: Build code
 
-on: push
+on: [push, pull_request]
 
 jobs:
   build-code:
@@ -28,3 +28,4 @@ jobs:
           fi
           chmod +x dist/binance-historical-linux-x64
           ./dist/binance-historical-linux-x64 --version
+          ./dist/binance-historical-linux-x64 describe --json

@@ -1,192 +1,199 @@
-import { Command } from 'commander';
+import axios from 'axios';
+import prompts from 'prompts';
+import { promises as fs } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { runCommand } from '../cli';
 
-const VALID_INTERVALS = [
-  '1m',
-  '3m',
-  '5m',
-  '15m',
-  '30m',
-  '1h',
-  '2h',
-  '4h',
-  '6h',
-  '8h',
-  '12h',
-  '1d',
-  '3d',
-  '1w',
+jest.mock('axios');
+jest.mock('prompts');
+const http = axios as jest.Mocked<typeof axios>;
+const ask = prompts as jest.MockedFunction<typeof prompts>;
+const start = Date.UTC(2024, 0, 1);
+const row = [
+  start,
+  '1',
+  '2',
+  '0.5',
+  '1.5',
+  '10',
+  start + 59999,
+  '15',
+  2,
+  '5',
+  '7.5',
+  '0',
 ];
-
-describe('CLI Options', () => {
-  let program: Command;
-
-  beforeEach(() => {
-    program = new Command();
-    program
-      .name('binance-historical')
-      .description('Download historical klines from Binance')
-      .version('1.0.0')
-      .option('-p, --pair <symbol>', 'Trading pair (e.g., BTCUSDT, ETHUSDT)')
-      .option(
-        '-i, --interval <interval>',
-        `Kline interval (${VALID_INTERVALS.join(', ')})`,
-      )
-      .option('-s, --start <date>', 'Start date (YYYY-MM-DD or ISO 8601)')
-      .option('-e, --end <date>', 'End date (YYYY-MM-DD or ISO 8601)')
-      .option(
-        '-o, --output <path>',
-        'Output directory path (filename is auto-generated)',
-      )
-      .option('-f, --format <format>', 'Output format (json, csv)', 'json');
+let dir: string;
+let stdout: string;
+let stderr: string;
+let outSpy: jest.SpyInstance;
+let errSpy: jest.SpyInstance;
+const invoke = (...args: string[]) =>
+  runCommand(['node', 'binance-historical', ...args]);
+const args = () => [
+  '--pair',
+  'BTCUSDT',
+  '--interval',
+  '1m',
+  '--start',
+  '2024-01-01',
+  '--end',
+  '2024-01-01T00:01:00Z',
+  '--output',
+  dir,
+];
+beforeEach(async () => {
+  jest.resetAllMocks();
+  http.get.mockResolvedValue({ data: [row] });
+  dir = await fs.mkdtemp(join(tmpdir(), 'binance-cli-'));
+  stdout = '';
+  stderr = '';
+  outSpy = jest.spyOn(process.stdout, 'write').mockImplementation((text) => {
+    stdout += String(text);
+    return true;
   });
-
-  describe('Option Parsing', () => {
-    it('should parse pair option', () => {
-      program.parse(['node', 'test', '--pair', 'BTCUSDT']);
-      const options = program.opts();
-      expect(options.pair).toBe('BTCUSDT');
-    });
-
-    it('should parse short pair option', () => {
-      program.parse(['node', 'test', '-p', 'ETHUSDT']);
-      const options = program.opts();
-      expect(options.pair).toBe('ETHUSDT');
-    });
-
-    it('should parse interval option', () => {
-      program.parse(['node', 'test', '--interval', '1h']);
-      const options = program.opts();
-      expect(options.interval).toBe('1h');
-    });
-
-    it('should parse short interval option', () => {
-      program.parse(['node', 'test', '-i', '4h']);
-      const options = program.opts();
-      expect(options.interval).toBe('4h');
-    });
-
-    it('should parse start date option', () => {
-      program.parse(['node', 'test', '--start', '2020-01-01']);
-      const options = program.opts();
-      expect(options.start).toBe('2020-01-01');
-    });
-
-    it('should parse short start date option', () => {
-      program.parse(['node', 'test', '-s', '2020-01-01']);
-      const options = program.opts();
-      expect(options.start).toBe('2020-01-01');
-    });
-
-    it('should parse end date option', () => {
-      program.parse(['node', 'test', '--end', '2020-12-31']);
-      const options = program.opts();
-      expect(options.end).toBe('2020-12-31');
-    });
-
-    it('should parse short end date option', () => {
-      program.parse(['node', 'test', '-e', '2020-12-31']);
-      const options = program.opts();
-      expect(options.end).toBe('2020-12-31');
-    });
-
-    it('should parse output path option', () => {
-      program.parse(['node', 'test', '--output', './data/']);
-      const options = program.opts();
-      expect(options.output).toBe('./data/');
-    });
-
-    it('should parse short output path option', () => {
-      program.parse(['node', 'test', '-o', './data/']);
-      const options = program.opts();
-      expect(options.output).toBe('./data/');
-    });
-
-    it('should parse format option', () => {
-      program.parse(['node', 'test', '--format', 'csv']);
-      const options = program.opts();
-      expect(options.format).toBe('csv');
-    });
-
-    it('should parse short format option', () => {
-      program.parse(['node', 'test', '-f', 'csv']);
-      const options = program.opts();
-      expect(options.format).toBe('csv');
-    });
-
-    it('should use json as default format', () => {
-      program.parse(['node', 'test']);
-      const options = program.opts();
-      expect(options.format).toBe('json');
-    });
-
-    it('should parse all options together', () => {
-      program.parse([
-        'node',
-        'test',
-        '-p',
-        'BTCUSDT',
-        '-i',
-        '1h',
-        '-s',
-        '2020-01-01',
-        '-e',
-        '2020-12-31',
-        '-o',
-        './data/',
-        '-f',
-        'csv',
-      ]);
-      const options = program.opts();
-      expect(options.pair).toBe('BTCUSDT');
-      expect(options.interval).toBe('1h');
-      expect(options.start).toBe('2020-01-01');
-      expect(options.end).toBe('2020-12-31');
-      expect(options.output).toBe('./data/');
-      expect(options.format).toBe('csv');
-    });
+  errSpy = jest.spyOn(process.stderr, 'write').mockImplementation((text) => {
+    stderr += String(text);
+    return true;
   });
-
-  describe('Program Structure', () => {
-    it('should have all required options', () => {
-      const options = program.options || [];
-      const optionNames = options.map((opt) => opt.long);
-
-      expect(optionNames).toContain('--pair');
-      expect(optionNames).toContain('--interval');
-      expect(optionNames).toContain('--start');
-      expect(optionNames).toContain('--end');
-      expect(optionNames).toContain('--output');
-      expect(optionNames).toContain('--format');
+  process.exitCode = 0;
+});
+afterEach(async () => {
+  outSpy.mockRestore();
+  errSpy.mockRestore();
+  process.exitCode = 0;
+  await fs.rm(dir, { recursive: true, force: true });
+});
+describe('actual CLI', () => {
+  it.each([true, false])(
+    'supports documented invocation (download=%s) and directory without trailing slash',
+    async (subcommand) => {
+      await invoke(...(subcommand ? ['download'] : []), ...args(), '--json');
+      const report = JSON.parse(stdout);
+      expect(report.status).toBe('success');
+      expect(report.results[0].count).toBe(1);
+      expect(
+        report.results[0].outputPath.startsWith(join(dir, 'spot_BTCUSDT')),
+      ).toBe(true);
+      expect(
+        JSON.parse(await fs.readFile(report.results[0].outputPath, 'utf8')),
+      ).toHaveLength(1);
+      expect(stderr).toBe('');
+      expect(ask).not.toHaveBeenCalled();
+      expect(process.exitCode).toBe(0);
+    },
+  );
+  it('reports HTTP failure with nonzero exit instead of silent success', async () => {
+    http.get.mockRejectedValue({
+      response: { status: 400, data: { code: -1121, msg: 'Invalid symbol' } },
     });
-
-    it('should have correct short options', () => {
-      const options = program.options || [];
-      const shortOptions = options
-        .map((opt) => opt.short)
-        .filter((opt): opt is string => opt !== undefined);
-
-      expect(shortOptions).toContain('-p');
-      expect(shortOptions).toContain('-i');
-      expect(shortOptions).toContain('-s');
-      expect(shortOptions).toContain('-e');
-      expect(shortOptions).toContain('-o');
-      expect(shortOptions).toContain('-f');
-    });
+    await invoke('download', ...args(), '--json');
+    const report = JSON.parse(stdout);
+    expect(report.status).toBe('error');
+    expect(report.results[0].error.binanceCode).toBe(-1121);
+    expect(report.results[0].resumable).toBe(true);
+    expect(process.exitCode).toBe(1);
   });
-
-  describe('Program Metadata', () => {
-    it('should have correct program name', () => {
-      expect(program.name()).toBe('binance-historical');
-    });
-
-    it('should have correct program description', () => {
-      expect(program.description()).toBe(
-        'Download historical klines from Binance',
-      );
-    });
-
-    it('should have version', () => {
-      expect(program.version()).toBe('1.0.0');
-    });
+  it.each(
+    [
+      ['--non-interactive'],
+      ['--json'],
+      ['--pair', '../BTC', '--json'],
+      ['--bad-option', '--json'],
+    ].map((args) => [args]),
+  )(
+    'fails incomplete/invalid invocations without prompting: %j',
+    async (extra) => {
+      await invoke('download', ...extra);
+      expect(process.exitCode).toBe(2);
+      expect(http.get).not.toHaveBeenCalled();
+      expect(ask).not.toHaveBeenCalled();
+      if (extra.includes('--json'))
+        expect(JSON.parse(stdout).status).toBe('error');
+    },
+  );
+  it('describes capabilities and COIN-M output for agents', async () => {
+    await invoke('describe', '--json');
+    const report = JSON.parse(stdout);
+    expect(report.markets.spot.intervals).toContain('1s');
+    expect(report.markets['coin-m'].fields).toContain('baseAssetVolume');
+    expect(report.dates.end).toBe('exclusive');
+    expect(http.get).not.toHaveBeenCalled();
   });
+  it('finishes other pairs on one failure and preserves requested order', async () => {
+    http.get.mockImplementation(async (_url, config) => {
+      if (config!.params.symbol === 'BAD')
+        throw { response: { status: 400, data: { msg: 'Invalid symbol' } } };
+      return { data: [row] };
+    });
+    await invoke(
+      'download',
+      '--pairs',
+      'BTCUSDT,BAD,ETHUSDT,BTCUSDT',
+      ...args().slice(2),
+      '--json',
+    );
+    const report = JSON.parse(stdout);
+    expect(report.results.map((r: { pair: string }) => r.pair)).toEqual([
+      'BTCUSDT',
+      'BAD',
+      'ETHUSDT',
+    ]);
+    expect(report.results.map((r: { status: string }) => r.status)).toEqual([
+      'success',
+      'error',
+      'success',
+    ]);
+    expect(process.exitCode).toBe(1);
+  });
+  it('supports hybrid interaction and validates the resulting dates', async () => {
+    const descriptor = Object.getOwnPropertyDescriptor(process.stdin, 'isTTY');
+    Object.defineProperty(process.stdin, 'isTTY', {
+      configurable: true,
+      value: true,
+    });
+    ask.mockResolvedValue({
+      start: '2024-02-30',
+      end: '2024-03-01',
+      output: dir,
+    });
+    try {
+      await invoke('download', '--pair', 'ETHUSDT', '--interval', '1m');
+      expect(ask).toHaveBeenCalledTimes(1);
+      expect(process.exitCode).toBe(2);
+      expect(http.get).not.toHaveBeenCalled();
+    } finally {
+      if (descriptor) Object.defineProperty(process.stdin, 'isTTY', descriptor);
+      else Reflect.deleteProperty(process.stdin, 'isTTY');
+    }
+  });
+  it('uses explicit root options with the subcommand', async () => {
+    await invoke(
+      '--market',
+      'coin-m',
+      '--format',
+      'csv',
+      'download',
+      ...args(),
+      '--json',
+    );
+    const result = JSON.parse(stdout).results[0];
+    expect(result.market).toBe('coin-m');
+    expect(result.outputPath).toMatch(/\.csv$/);
+  });
+});
+
+it('keeps JSON reporting when a flag value happens to be "describe"', async () => {
+  // An invalid pair avoids creating the relative output directory.
+  await invoke(
+    'download',
+    '--pair',
+    '../BAD',
+    '--output',
+    'describe',
+    '--json',
+  );
+  expect(JSON.parse(stdout).error.code).toBe('INVALID_ARGUMENT');
+  expect(stderr).toBe('');
 });
