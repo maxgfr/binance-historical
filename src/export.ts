@@ -287,8 +287,9 @@ export async function exportKlines(
           'Partial file contents do not match checkpoint',
           'INVALID_CHECKPOINT',
         );
+      // Windows append-only handles cannot truncate a partially written page.
+      await fs.truncate(partPath, checkpoint.offset);
       file = await fs.open(partPath, 'a');
-      await file.truncate(checkpoint.offset);
     } else {
       if (
         (await exists(outputPath)) ||
