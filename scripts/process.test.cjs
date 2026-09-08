@@ -33,7 +33,7 @@ function options(dir) {
     '--json',
   ];
 }
-test('real process exports exact rows, exposes errors, and resumes', async () => {
+test('real process exports exact rows, cleans checkpoints, and exposes errors', async () => {
   const dir = await fs.mkdtemp(join(tmpdir(), 'binance-process-'));
   try {
     const args = options(dir);
@@ -46,9 +46,15 @@ test('real process exports exact rows, exposes errors, and resumes', async () =>
       JSON.parse(await fs.readFile(result.outputPath, 'utf8')).length,
       1440,
     );
+    assert.deepEqual(await fs.readdir(dir), [
+      require('node:path').basename(result.outputPath),
+    ]);
     const repeat = run([...args, '--resume']);
-    assert.equal(repeat.status, 0, repeat.stderr + repeat.stdout);
-    assert.equal(JSON.parse(repeat.stdout).results[0].resumed, true);
+    assert.equal(repeat.status, 1, repeat.stderr + repeat.stdout);
+    assert.equal(
+      JSON.parse(repeat.stdout).results[0].error.code,
+      'DESTINATION_EXISTS',
+    );
     const bad = run([...args, '--overwrite'], { BINANCE_TEST_MODE: 'failure' });
     assert.equal(bad.status, 1);
     assert.equal(JSON.parse(bad.stdout).results[0].error.binanceCode, -1121);
@@ -112,6 +118,9 @@ for (const signal of ['SIGINT', 'SIGKILL'])
         const resumed = run([...args, '--resume']);
         assert.equal(resumed.status, 0, resumed.stdout + resumed.stderr);
         assert.equal(JSON.parse(resumed.stdout).results[0].count, 1440);
+        const outputPath = JSON.parse(resumed.stdout).results[0].outputPath;
+        assert.equal(existsSync(`${outputPath}.checkpoint.json`), false);
+        assert.equal(existsSync(`${outputPath}.part`), false);
       } finally {
         if (child.exitCode === null) child.kill('SIGKILL');
         await stopped;

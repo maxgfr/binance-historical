@@ -53,6 +53,7 @@ describe('durable exports', () => {
       const complete = { ...options, format };
       await exportKlines(complete);
       const expected = await fs.readFile(options.outputPath, 'utf8');
+      expect(await fs.readdir(join(dir, 'nested'))).toEqual(['data.json']);
       const interrupted = {
         ...complete,
         outputPath: join(dir, `interrupted.${format}`),
@@ -80,15 +81,21 @@ describe('durable exports', () => {
       expect(result.referenceTime).toBe(checkpoint.referenceTime);
       expect(http.get.mock.calls[0][1]?.params.startTime).toBe(start + 60000);
       expect(await fs.readFile(interrupted.outputPath, 'utf8')).toBe(expected);
+      await expect(
+        fs.access(`${interrupted.outputPath}.checkpoint.json`),
+      ).rejects.toMatchObject({ code: 'ENOENT' });
     },
   );
-  it('refuses overwriting by default and can resume a completed export without HTTP', async () => {
+  it('removes completed checkpoints and refuses replacing the final export, including with resume', async () => {
     await exportKlines(options);
     await expect(exportKlines(options)).rejects.toMatchObject({
       code: 'DESTINATION_EXISTS',
     });
     http.get.mockClear();
-    expect((await exportKlines({ ...options, resume: true })).count).toBe(3);
+    await expect(
+      exportKlines({ ...options, resume: true }),
+    ).rejects.toMatchObject({ code: 'DESTINATION_EXISTS' });
+    expect(await fs.readdir(join(dir, 'nested'))).toEqual(['data.json']);
     expect(http.get).not.toHaveBeenCalled();
   });
   it('preserves the old final file while overwriting and can resume the replacement', async () => {
@@ -128,6 +135,7 @@ describe('durable exports', () => {
     expect(JSON.parse(await fs.readFile(options.outputPath, 'utf8'))).toEqual(
       [],
     );
+    expect(await fs.readdir(join(dir, 'nested'))).toEqual(['data.json']);
   });
   it('uses COIN-M CSV field names and units', async () => {
     await exportKlines({ ...options, market: 'coin-m', format: 'csv' });
@@ -155,6 +163,7 @@ describe('durable exports', () => {
     expect(
       JSON.parse(await fs.readFile(options.outputPath, 'utf8')),
     ).toHaveLength(3);
+    expect(await fs.readdir(join(dir, 'nested'))).toEqual(['data.json']);
   });
   it('refuses a second writer', async () => {
     await fs.mkdir(join(dir, 'nested'));
@@ -187,6 +196,25 @@ describe('finalization recovery', () => {
     await exportKlines({ ...options, resume: true });
     expect(http.get).not.toHaveBeenCalled();
     await expect(fs.access(`${options.outputPath}.part`)).rejects.toThrow();
+    expect(await fs.readdir(join(dir, 'nested'))).toEqual(['data.json']);
+  });
+  it('recovers a completed export after checkpoint cleanup fails without downloading it again', async () => {
+    const originalRm = fs.rm.bind(fs);
+    const checkpointPath = `${options.outputPath}.checkpoint.json`;
+    jest.spyOn(fs, 'rm').mockImplementation(async (path, rmOptions) => {
+      if (path === checkpointPath) throw new Error('cleanup failure');
+      return originalRm(path, rmOptions);
+    });
+    await expect(exportKlines(options)).rejects.toThrow('cleanup failure');
+    await fs.access(options.outputPath);
+    await fs.access(`${options.outputPath}.checkpoint.json`);
+    jest.restoreAllMocks();
+    http.get.mockClear();
+    const result = await exportKlines({ ...options, resume: true });
+    expect(result.count).toBe(3);
+    expect(result.resumed).toBe(true);
+    expect(http.get).not.toHaveBeenCalled();
+    expect(await fs.readdir(join(dir, 'nested'))).toEqual(['data.json']);
   });
   it('detects corrupted cursor metadata even if the stored prefix is intact', async () => {
     http.get

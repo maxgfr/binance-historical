@@ -76,3 +76,6 @@ or report an unavailable market. Stop on bans and checkpoint corruption.
 Use `--overwrite` only when replacing the existing export is requested;
 it is mutually exclusive with `--resume`. Keep `.part` and
 `.checkpoint.json` files together until the export is finished.
+After success, the checkpoint is deleted automatically and only the exported
+CSV or JSON remains. Use that final file directly; `--resume` requires a
+checkpoint from an interrupted export.

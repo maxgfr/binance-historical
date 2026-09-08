@@ -247,6 +247,7 @@ export async function exportKlines(
             'INVALID_CHECKPOINT',
           );
         await fs.rm(partPath, { force: true });
+        await fs.rm(checkpointPath, { force: true });
         return {
           pair: config.pair,
           market: config.market,
@@ -297,7 +298,7 @@ export async function exportKlines(
         (await exists(checkpointPath))
       )
         throw new DownloadError(
-          'Destination exists; use --resume or --overwrite',
+          'Destination exists; use --resume for interrupted exports or --overwrite to replace it',
           'DESTINATION_EXISTS',
         );
     }
@@ -394,6 +395,7 @@ export async function exportKlines(
       await fs.link(partPath, outputPath);
       await fs.unlink(partPath);
     }
+    await fs.rm(checkpointPath, { force: true });
     return {
       pair: config.pair,
       market: config.market,

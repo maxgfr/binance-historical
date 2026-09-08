@@ -63,7 +63,7 @@ binance-historical download --pair BTCUSD_PERP --market coin-m \
 | `-f, --format`      | `json` (default) or `csv`                                                                                            |
 | `--concurrency`     | Concurrent symbols, 1–4; default 2                                                                                   |
 | `--include-open`    | Include forming candles                                                                                              |
-| `--resume`          | Resume a matching checkpoint; completed files are verified and skipped                                               |
+| `--resume`          | Resume an interrupted export using its matching checkpoint                                                          |
 | `--overwrite`       | Replace an export after the new download completes                                                                   |
 | `--non-interactive` | Fail on missing parameters instead of prompting                                                                      |
 | `--json`            | One JSON execution report on stdout; implies non-interactive                                                         |
@@ -88,7 +88,8 @@ header; decimal prices and volumes retain their exchange precision.
 Exports write to `<output>.part` first and maintain
 `<output>.checkpoint.json`. A page is synchronized to disk before its cursor is
 committed. Only a completed file appears at the final path. Existing outputs
-are refused unless `--resume` or `--overwrite` is given.
+are refused unless `--overwrite` is given or `--resume` finds a matching
+checkpoint from an interrupted export.
 
 After an interruption, repeat the original command with `--resume`. Keep the
 checkpoint and partial file together. A resumed operation retains the original
@@ -96,9 +97,10 @@ reference instant and validates the stored prefix before discarding an
 uncommitted trailing write. An incompatible or corrupted checkpoint fails
 explicitly. Older exports without checkpoints cannot be resumed.
 
-The checkpoint is retained after success so repeated `--resume` is idempotent.
-The final file can be used independently, and its checkpoint can be removed
-when resume verification is no longer needed. A `.lock` prevents simultaneous
+The checkpoint is automatically deleted after the final file is published
+successfully. Only the CSV or JSON export remains. Checkpoints are kept on
+failure or interruption so `--resume` can continue the export. To replace an
+already completed export, use `--overwrite`. A `.lock` prevents simultaneous
 writers to the same export. `--resume` recovers a stale lock when its recorded
 local process no longer exists. Locks from another host or with unreadable
 metadata require checking the owner before manual removal.
