@@ -1,6 +1,9 @@
 ---
 name: binance-historical
-description: Download and resume Binance historical candles with the binance-historical CLI, including Spot, USDⓈ-M and COIN-M futures, multiple symbols, and JSON or CSV exports. Use for requests to retrieve Binance OHLCV data or operate this downloader from Claude Code or Codex.
+description: Download and resume Binance historical candles for Spot and futures markets with JSON or CSV exports.
+disable-model-invocation: true
+metadata:
+  opencode/autoinvoke: 'false'
 ---
 
 # Download Binance historical candles
