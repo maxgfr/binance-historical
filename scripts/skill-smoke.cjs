@@ -31,6 +31,23 @@ try {
     join(root, 'skills/binance-historical/SKILL.md'),
     'utf8',
   );
+  const frontmatter = source.match(/^---\n([\s\S]*?)\n---/)?.[1] ?? '';
+  assert.doesNotMatch(frontmatter, /^disable-model-invocation:\s*true\s*$/m);
+  assert.doesNotMatch(
+    frontmatter,
+    /opencode\/autoinvoke:\s*['"]?false['"]?\s*$/m,
+  );
+  assert.match(
+    frontmatter,
+    /Use only when the user explicitly asks for binance-historical/,
+  );
+  assert.match(
+    readFileSync(
+      join(root, 'skills/binance-historical/agents/openai.yaml'),
+      'utf8',
+    ),
+    /^policy:\s*\n(?:[ \t]+[^\n]*\n)*?[ \t]+allow_implicit_invocation:\s*true\s*$/m,
+  );
   for (const agent of ['.agents', '.claude'])
     assert.equal(
       readFileSync(
