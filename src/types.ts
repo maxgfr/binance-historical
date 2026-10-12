@@ -68,16 +68,7 @@ export type BinanceResponseData = [
   string,
   string,
 ];
-export type BinanceResponse = { data: BinanceResponseData[] };
 export type OutputFormat = 'json' | 'csv' | 'jsonl';
-export type PromptResult = {
-  pair: string;
-  interval: BinanceInterval;
-  startDate: Date;
-  endDate: Date;
-  fileName: string;
-  format: OutputFormat;
-};
 
 export interface Progress {
   pair: string;
