@@ -5,7 +5,7 @@ import { spawnSync } from 'node:child_process';
 import { hostname, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { runCommand } from '../cli';
-import { outputName } from '../cli-download';
+import { formatProgress, outputName } from '../cli-download';
 
 jest.mock('axios');
 jest.mock('prompts');
@@ -238,4 +238,22 @@ it('gives 1m and 1M exports distinct names on case-insensitive filesystems', () 
     ).toLowerCase();
   expect(name('1M')).not.toBe(name('1m'));
   expect(name('1M')).toContain('_1mo_');
+});
+
+it('reports resumed progress with a per-pair rate, percentage and ETA', () => {
+  const minute = 60000;
+  const state = { start, end: start + 4000 * minute };
+  const progress = (count: number) => ({
+    pair: 'BTCUSDT',
+    count,
+    cursor: start + count * minute,
+    requests: 1,
+    retries: 0,
+  });
+  formatProgress('BTCUSDT', progress(1000), state, 5000);
+  const line = formatProgress('BTCUSDT', progress(1500), state, 6000);
+  expect(line).toContain('37.5%');
+  expect(line).toContain('1500 candles');
+  expect(line).toContain('500/s');
+  expect(line).toContain('ETA 5s');
 });

@@ -16,6 +16,7 @@ import type {
   DownloadOptions,
   Market,
   OutputFormat,
+  Progress,
 } from './types';
 
 export interface ErrorReport {
@@ -73,6 +74,40 @@ export function outputName(
   const name = interval === '1M' ? '1mo' : interval;
   return `${market}_${pair}_${name}_${stamp(start)}_${stamp(end)}.${format}`;
 }
+export interface ProgressState {
+  start: number;
+  end: number;
+  first?: { at: number; count: number; cursor: number };
+  printedAt?: number;
+}
+function duration(seconds: number): string {
+  const s = Math.ceil(seconds);
+  if (s < 60) return `${s}s`;
+  if (s < 3600) return `${Math.floor(s / 60)}m ${s % 60}s`;
+  return `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m`;
+}
+/** Rates are measured from the pair's first event, so resumed candles do not inflate them. */
+export function formatProgress(
+  pair: string,
+  progress: Progress,
+  state: ProgressState,
+  now = Date.now(),
+): string {
+  const { count, cursor } = progress;
+  const first = (state.first ??= { at: now, count, cursor });
+  const span = state.end - state.start;
+  const percent =
+    span > 0 ? Math.min(100, (100 * (cursor - state.start)) / span) : 100;
+  let text = `${pair}: ${percent.toFixed(1)}%, ${count} candles, through ${new Date(cursor).toISOString()}`;
+  const seconds = (now - first.at) / 1000;
+  if (seconds > 0) {
+    text += `, ${Math.round((count - first.count) / seconds)}/s`;
+    const speed = (cursor - first.cursor) / seconds;
+    if (speed > 0)
+      text += `, ETA ${duration(Math.max(0, state.end - cursor) / speed)}`;
+  }
+  return `${text}, ${progress.retries} retries`;
+}
 export async function download(
   options: CliOptions,
   signal: AbortSignal,
@@ -100,8 +135,7 @@ export async function download(
   const results: ResultReport[] = new Array(pairs.length);
   const context = new RequestContext();
   let next = 0;
-  const started = Date.now();
-  const lastUpdate = new Map<string, number>();
+  const progress = new Map<string, ProgressState>();
   const worker = async () => {
     while (next < pairs.length) {
       const index = next++;
@@ -127,17 +161,21 @@ export async function download(
             resume: options.resume,
             overwrite: options.overwrite,
             onProgress: (p) => {
-              if (
-                !options.json &&
-                process.stderr.isTTY &&
-                Date.now() - (lastUpdate.get(pair) ?? 0) > 500
-              ) {
-                lastUpdate.set(pair, Date.now());
-                const seconds = Math.max(1, (Date.now() - started) / 1000);
-                process.stderr.write(
-                  `${pair}: ${p.count} candles, through ${new Date(p.cursor).toISOString()}, ${Math.round(p.count / seconds)}/s, ${p.retries} retries\n`,
+              if (options.json || !process.stderr.isTTY) return;
+              let state = progress.get(pair);
+              if (!state)
+                progress.set(
+                  pair,
+                  (state = {
+                    start: common.startDate.getTime(),
+                    end: Math.min(common.endDate.getTime(), referenceTime),
+                  }),
                 );
-              }
+              const now = Date.now();
+              const line = formatProgress(pair, p, state, now);
+              if (now - (state.printedAt ?? 0) < 1000) return;
+              state.printedAt = now;
+              process.stderr.write(`${line}\n`);
             },
           },
           context,
