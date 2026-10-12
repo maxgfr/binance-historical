@@ -71,6 +71,18 @@ export function downloadOptions(command: Command): Command {
       'Emit one machine-readable report on stdout; implies non-interactive',
     );
 }
+/** Prompt validator: the parser's message is shown inline instead of exiting later. */
+const check =
+  (parse: (value: string) => unknown) =>
+  (value: string): true | string => {
+    try {
+      parse(value);
+      return true;
+    } catch (error) {
+      if (error instanceof DownloadError) return error.message;
+      throw error;
+    }
+  };
 export async function completeOptions(
   options: CliOptions,
 ): Promise<CliOptions> {
@@ -108,9 +120,7 @@ export async function completeOptions(
     );
   if (!missing.length) return options;
   const defaultEnd = options.end ?? new Date().toISOString().slice(0, 10);
-  const defaultStart = new Date(
-    parseDate(defaultEnd).getTime() - 30 * 86400000,
-  )
+  const defaultStart = new Date(parseDate(defaultEnd).getTime() - 30 * 86400000)
     .toISOString()
     .slice(0, 10);
   const questions: prompts.PromptObject[] = [
@@ -119,6 +129,7 @@ export async function completeOptions(
       type: 'text',
       message: 'Trading pair or contract:',
       initial: 'ETHUSDT',
+      validate: check(normalizePair),
     },
     {
       name: 'interval',
@@ -135,12 +146,14 @@ export async function completeOptions(
       type: 'text',
       message: 'Inclusive start (YYYY-MM-DD or ISO with timezone):',
       initial: defaultStart,
+      validate: check(parseDate),
     },
     {
       name: 'end',
       type: 'text',
       message: 'Exclusive end (YYYY-MM-DD or ISO with timezone):',
       initial: defaultEnd,
+      validate: check(parseDate),
     },
     {
       name: 'output',

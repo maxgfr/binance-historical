@@ -196,6 +196,33 @@ describe('actual CLI', () => {
     expect(result.resumable).toBe(true);
     expect(http.get).not.toHaveBeenCalled();
   });
+  it('validates pair and dates while prompting', async () => {
+    const descriptor = Object.getOwnPropertyDescriptor(process.stdin, 'isTTY');
+    Object.defineProperty(process.stdin, 'isTTY', {
+      configurable: true,
+      value: true,
+    });
+    ask.mockResolvedValue({});
+    try {
+      await invoke('download', '--interval', '1m');
+      const questions = ask.mock.calls[0][0] as prompts.PromptObject[];
+      const validate = (name: string, value: string) =>
+        (
+          questions.find((q) => q.name === name)?.validate as (
+            v: string,
+          ) => true | string
+        )(value);
+      expect(validate('pair', '../BTC')).toMatch(/Pair must contain/);
+      expect(validate('pair', 'ethusdt')).toBe(true);
+      for (const name of ['start', 'end']) {
+        expect(validate(name, '2024-02-30')).toMatch(/Invalid calendar date/);
+        expect(validate(name, '2024-02-29')).toBe(true);
+      }
+    } finally {
+      if (descriptor) Object.defineProperty(process.stdin, 'isTTY', descriptor);
+      else Reflect.deleteProperty(process.stdin, 'isTTY');
+    }
+  });
   it('uses explicit root options with the subcommand', async () => {
     await invoke(
       '--market',
