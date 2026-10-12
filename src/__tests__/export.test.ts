@@ -165,6 +165,18 @@ describe('durable exports', () => {
     ).toHaveLength(3);
     expect(await fs.readdir(join(dir, 'nested'))).toEqual(['data.json']);
   });
+  it('leaves nothing behind when a new export fails before its first page', async () => {
+    http.get.mockRejectedValue({
+      response: { status: 400, data: { code: -1121, msg: 'Invalid symbol.' } },
+    });
+    await expect(exportKlines(options)).rejects.toMatchObject({
+      binanceCode: -1121,
+    });
+    expect(await fs.readdir(join(dir, 'nested'))).toEqual([]);
+    await expect(exportKlines(options)).rejects.toMatchObject({
+      binanceCode: -1121,
+    });
+  });
   it('refuses a second writer', async () => {
     await fs.mkdir(join(dir, 'nested'));
     await fs.writeFile(`${options.outputPath}.lock`, 'another writer');

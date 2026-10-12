@@ -92,7 +92,8 @@ describe('actual CLI', () => {
     const report = JSON.parse(stdout);
     expect(report.status).toBe('error');
     expect(report.results[0].error.binanceCode).toBe(-1121);
-    expect(report.results[0].resumable).toBe(true);
+    expect(report.results[0].resumable).toBe(false);
+    expect(await fs.readdir(dir)).toEqual([]);
     expect(process.exitCode).toBe(1);
   });
   it.each(

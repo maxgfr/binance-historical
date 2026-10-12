@@ -183,6 +183,7 @@ export async function exportKlines(
     prefixHash: createHash('sha256').digest('hex'),
   };
   let resumed = false;
+  let createdPart = false;
   let hash = createHash('sha256');
   try {
     if (options.overwrite) {
@@ -304,6 +305,7 @@ export async function exportKlines(
     }
     if (!file) {
       file = await fs.open(partPath, 'wx');
+      createdPart = true;
       const header =
         format === 'json' ? '[' : `${fieldsFor(config.market).join(',')}\n`;
       await writeAll(file, header);
@@ -406,6 +408,21 @@ export async function exportKlines(
       resumed,
       referenceTime: checkpoint.referenceTime,
     };
+  } catch (error) {
+    // Nothing was committed, so there is nothing to resume: let a rerun start clean.
+    if (
+      createdPart &&
+      !checkpoint.completed &&
+      checkpoint.cursor === config.start
+    ) {
+      await file?.close();
+      file = undefined;
+      await Promise.allSettled([
+        fs.rm(partPath, { force: true }),
+        fs.rm(checkpointPath, { force: true }),
+      ]);
+    }
+    throw error;
   } finally {
     await file?.close();
     await lock.close();
