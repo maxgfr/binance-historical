@@ -4,6 +4,7 @@ import { promises as fs } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { runCommand } from '../cli';
+import { outputName } from '../cli-download';
 
 jest.mock('axios');
 jest.mock('prompts');
@@ -197,4 +198,18 @@ it('keeps JSON reporting when a flag value happens to be "describe"', async () =
   );
   expect(JSON.parse(stdout).error.code).toBe('INVALID_ARGUMENT');
   expect(stderr).toBe('');
+});
+
+it('gives 1m and 1M exports distinct names on case-insensitive filesystems', () => {
+  const name = (interval: string) =>
+    outputName(
+      'spot',
+      'BTCUSDT',
+      interval,
+      new Date(start),
+      new Date(start + 86400000),
+      'json',
+    ).toLowerCase();
+  expect(name('1M')).not.toBe(name('1m'));
+  expect(name('1M')).toContain('_1mo_');
 });

@@ -68,7 +68,9 @@ export function outputName(
   format: OutputFormat,
 ): string {
   const stamp = (date: Date) => date.toISOString().replace(/:/g, '-');
-  return `${market}_${pair}_${interval}_${stamp(start)}_${stamp(end)}.${format}`;
+  // 1m and 1M would share a file on case-insensitive filesystems.
+  const name = interval === '1M' ? '1mo' : interval;
+  return `${market}_${pair}_${name}_${stamp(start)}_${stamp(end)}.${format}`;
 }
 export async function download(
   options: CliOptions,
