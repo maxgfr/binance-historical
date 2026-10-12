@@ -96,8 +96,6 @@
     "prettier": "3.7.4",
     "rimraf": "5.0.10",
     "semantic-release": "23.1.1",
-    "ts-jest": "29.4.6",
-    "ts-node": "10.9.2",
     "typescript": "5.9.3"
   },
   "packageManager": "pnpm@10.8.1",

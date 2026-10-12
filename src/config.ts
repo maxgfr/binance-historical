@@ -1,4 +1,9 @@
-import type { BinanceInterval, DownloadOptions, Market } from './types';
+import type {
+  BinanceInterval,
+  DownloadOptions,
+  KlineKind,
+  Market,
+} from './types';
 
 export class DownloadError extends Error {
   constructor(
@@ -30,32 +35,57 @@ export const INTERVALS: BinanceInterval[] = [
   '1w',
   '1M',
 ];
+export const KINDS: Record<
+  KlineKind,
+  { endpoint: string; param: 'symbol' | 'pair' }
+> = {
+  trade: { endpoint: 'klines', param: 'symbol' },
+  mark: { endpoint: 'markPriceKlines', param: 'symbol' },
+  index: { endpoint: 'indexPriceKlines', param: 'pair' },
+  premium: { endpoint: 'premiumIndexKlines', param: 'symbol' },
+};
+const FUTURES_KINDS = Object.keys(KINDS) as KlineKind[];
 export const MARKETS: Record<
   Market,
   {
     baseUrl: string;
     maxLimit: number;
+    /** REQUEST_WEIGHT per minute, from exchangeInfo rateLimits. */
+    weightLimit: number;
     windowMs: number;
+    /** Results ascend from startTime, so an empty range can be skipped with one probe. */
+    seekable: boolean;
     intervals: BinanceInterval[];
+    kinds: KlineKind[];
   }
 > = {
   spot: {
     baseUrl: 'https://api.binance.com/api/v3',
     maxLimit: 1000,
+    weightLimit: 6000,
     windowMs: Infinity,
+    seekable: true,
     intervals: INTERVALS,
+    kinds: ['trade'],
   },
   'usd-m': {
     baseUrl: 'https://fapi.binance.com/fapi/v1',
     maxLimit: 1500,
+    weightLimit: 2400,
     windowMs: Infinity,
+    seekable: true,
     intervals: INTERVALS.filter((i) => i !== '1s'),
+    kinds: FUTURES_KINDS,
   },
   'coin-m': {
     baseUrl: 'https://dapi.binance.com/dapi/v1',
     maxLimit: 1500,
+    weightLimit: 2400,
     windowMs: 200 * 86400000,
+    // DAPI can return the latest rows of a range, which a probe could skip past.
+    seekable: false,
     intervals: INTERVALS.filter((i) => i !== '1s'),
+    kinds: FUTURES_KINDS,
   },
 };
 export function invalid(message: string): never {
@@ -66,6 +96,21 @@ export function normalizePair(pair: string): string {
   if (typeof pair !== 'string' || !/^[A-Za-z0-9_]{1,64}$/.test(pair.trim()))
     invalid('Pair must contain only letters, digits or underscores');
   return pair.trim().toUpperCase();
+}
+
+export function normalizeBaseUrl(value: string): string {
+  let url: URL | undefined;
+  try {
+    url = new URL(value);
+  } catch {
+    // Reported below with the other invalid values.
+  }
+  if (!url || (url.protocol !== 'https:' && url.protocol !== 'http:'))
+    invalid(`Base URL must be an http(s) URL, got "${value}"`);
+  // A loop, not /\/+$/, which backtracks quadratically on runs of slashes.
+  let end = value.length;
+  while (end > 0 && value[end - 1] === '/') end--;
+  return value.slice(0, end);
 }
 
 /** A strict calendar parser: date-only is UTC; timestamps require Z or an offset. */
@@ -95,7 +140,7 @@ export function parseDate(value: string): Date {
   return date;
 }
 export function validateDownload<M extends Market>(
-  options: DownloadOptions<M>,
+  options: DownloadOptions<M, KlineKind>,
 ) {
   const market: Market = options.market ?? 'spot';
   if (!Object.prototype.hasOwnProperty.call(MARKETS, market))
@@ -103,6 +148,14 @@ export function validateDownload<M extends Market>(
   const adapter = MARKETS[market];
   if (!adapter.intervals.includes(options.interval))
     invalid(`Invalid interval "${options.interval}" for ${market}`);
+  const kind: KlineKind = options.kind ?? 'trade';
+  if (
+    !Object.prototype.hasOwnProperty.call(KINDS, kind) ||
+    !adapter.kinds.includes(kind)
+  )
+    invalid(
+      `Invalid kind "${kind}" for ${market}; use ${adapter.kinds.join(', ')}`,
+    );
   const pair = normalizePair(options.pair);
   const start =
     options.startDate instanceof Date ? options.startDate.getTime() : NaN;
@@ -129,10 +182,16 @@ export function validateDownload<M extends Market>(
     if (!Number.isSafeInteger(value) || value < minimum)
       invalid(`Invalid ${name}`);
   }
+  const baseUrl =
+    options.baseUrl === undefined
+      ? adapter.baseUrl
+      : normalizeBaseUrl(options.baseUrl);
   return {
     ...options,
     market,
     adapter,
+    kind,
+    baseUrl,
     pair,
     start,
     end,

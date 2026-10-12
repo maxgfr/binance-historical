@@ -27,6 +27,16 @@ export type MarketKline<M extends Market> = M extends 'coin-m'
   ? CoinMKline
   : Kline;
 export type AnyKline = Kline | CoinMKline;
+/** trade klines carry volumes; mark, index and premium klines (futures only) carry prices. */
+export type KlineKind = 'trade' | 'mark' | 'index' | 'premium';
+export type PriceKline = Pick<
+  Kline,
+  'openTime' | 'open' | 'high' | 'low' | 'close' | 'closeTime'
+>;
+export type KlineFor<
+  M extends Market,
+  K extends KlineKind = 'trade',
+> = K extends 'trade' ? MarketKline<M> : PriceKline;
 export type BinanceInterval =
   | '1s'
   | '1m'
@@ -58,16 +68,7 @@ export type BinanceResponseData = [
   string,
   string,
 ];
-export type BinanceResponse = { data: BinanceResponseData[] };
-export type OutputFormat = 'json' | 'csv';
-export type PromptResult = {
-  pair: string;
-  interval: BinanceInterval;
-  startDate: Date;
-  endDate: Date;
-  fileName: string;
-  format: OutputFormat;
-};
+export type OutputFormat = 'json' | 'csv' | 'jsonl';
 
 export interface Progress {
   pair: string;
@@ -76,12 +77,18 @@ export interface Progress {
   requests: number;
   retries: number;
 }
-export interface DownloadOptions<M extends Market = 'spot'> {
+export interface DownloadOptions<
+  M extends Market = 'spot',
+  K extends KlineKind = 'trade',
+> {
+  /** Symbol; for index klines, the underlying pair (BTCUSDT, BTCUSD). */
   pair: string;
   interval: BinanceInterval;
   startDate: Date;
   endDate: Date;
   market?: M;
+  /** Defaults to trade; other kinds exist only on usd-m and coin-m. */
+  kind?: K;
   limit?: number;
   includeOpen?: boolean;
   /** Fixed reference instant; defaults to the start of the call. */
@@ -90,6 +97,8 @@ export interface DownloadOptions<M extends Market = 'spot'> {
   maxRetries?: number;
   /** Minimum spacing between request starts; defaults to 100 ms. */
   requestDelayMs?: number;
+  /** Replaces the market's REST root, e.g. https://api.binance.us/api/v3. */
+  baseUrl?: string;
   signal?: AbortSignal;
   onProgress?: (progress: Progress) => void;
 }

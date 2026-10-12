@@ -1,9 +1,11 @@
 import axios from 'axios';
 import prompts from 'prompts';
 import { promises as fs } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { spawnSync } from 'node:child_process';
+import { hostname, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { runCommand } from '../cli';
+import { formatProgress, outputName } from '../cli-download';
 
 jest.mock('axios');
 jest.mock('prompts');
@@ -92,7 +94,8 @@ describe('actual CLI', () => {
     const report = JSON.parse(stdout);
     expect(report.status).toBe('error');
     expect(report.results[0].error.binanceCode).toBe(-1121);
-    expect(report.results[0].resumable).toBe(true);
+    expect(report.results[0].resumable).toBe(false);
+    expect(await fs.readdir(dir)).toEqual([]);
     expect(process.exitCode).toBe(1);
   });
   it.each(
@@ -118,6 +121,17 @@ describe('actual CLI', () => {
     const report = JSON.parse(stdout);
     expect(report.markets.spot.intervals).toContain('1s');
     expect(report.markets['coin-m'].fields).toContain('baseAssetVolume');
+    expect(report.markets.spot.kinds).toEqual({
+      trade: { fields: report.markets.spot.fields },
+    });
+    expect(report.markets['usd-m'].kinds.index.fields).toEqual([
+      'openTime',
+      'open',
+      'high',
+      'low',
+      'close',
+      'closeTime',
+    ]);
     expect(report.dates.end).toBe('exclusive');
     expect(http.get).not.toHaveBeenCalled();
   });
@@ -168,6 +182,122 @@ describe('actual CLI', () => {
       else Reflect.deleteProperty(process.stdin, 'isTTY');
     }
   });
+  it('reports an export locked by a dead local writer as resumable', async () => {
+    const outputPath = join(
+      dir,
+      outputName(
+        'spot',
+        'BTCUSDT',
+        '1m',
+        new Date(start),
+        new Date(start + 60000),
+        'json',
+      ),
+    );
+    await fs.writeFile(`${outputPath}.checkpoint.json`, '{}');
+    const { pid } = spawnSync(process.execPath, ['-e', '']);
+    await fs.writeFile(
+      `${outputPath}.lock`,
+      JSON.stringify({ pid, hostname: hostname() }),
+    );
+    await invoke('download', ...args(), '--json');
+    const [result] = JSON.parse(stdout).results;
+    expect(result.error.code).toBe('EXPORT_LOCKED');
+    expect(result.error.message).toContain('--resume');
+    expect(result.resumable).toBe(true);
+    expect(http.get).not.toHaveBeenCalled();
+  });
+  it('validates pair and dates while prompting', async () => {
+    const descriptor = Object.getOwnPropertyDescriptor(process.stdin, 'isTTY');
+    Object.defineProperty(process.stdin, 'isTTY', {
+      configurable: true,
+      value: true,
+    });
+    ask.mockResolvedValue({});
+    try {
+      await invoke('download', '--interval', '1m');
+      const questions = ask.mock.calls[0][0] as prompts.PromptObject[];
+      const validate = (name: string, value: string) =>
+        (
+          questions.find((q) => q.name === name)?.validate as (
+            v: string,
+          ) => true | string
+        )(value);
+      expect(validate('pair', '../BTC')).toMatch(/Pair must contain/);
+      expect(validate('pair', 'ethusdt')).toBe(true);
+      for (const name of ['start', 'end']) {
+        expect(validate(name, '2024-02-30')).toMatch(/Invalid calendar date/);
+        expect(validate(name, '2024-02-29')).toBe(true);
+      }
+    } finally {
+      if (descriptor) Object.defineProperty(process.stdin, 'isTTY', descriptor);
+      else Reflect.deleteProperty(process.stdin, 'isTTY');
+    }
+  });
+  it('passes network options to the client', async () => {
+    http.get.mockRejectedValue({
+      response: { status: 503, data: { msg: 'Unavailable' } },
+    });
+    await invoke(
+      'download',
+      ...args(),
+      '--base-url',
+      'https://api.binance.us/api/v3/',
+      '--max-retries',
+      '0',
+      '--timeout',
+      '1234',
+      '--request-delay',
+      '0',
+      '--json',
+    );
+    expect(http.get).toHaveBeenCalledTimes(1);
+    expect(http.get.mock.calls[0][0]).toBe(
+      'https://api.binance.us/api/v3/klines',
+    );
+    expect(http.get.mock.calls[0][1]?.timeout).toBe(1234);
+    expect(JSON.parse(stdout).results[0].error.code).toBe('NETWORK_ERROR');
+  });
+  it.each([
+    ['--timeout', '0'],
+    ['--timeout', '1.5'],
+    ['--max-retries', '-1'],
+    ['--request-delay', 'soon'],
+    ['--base-url', 'ftp://example.com'],
+  ])('rejects %s %s before any request', async (flag, value) => {
+    await invoke('download', ...args(), flag, value, '--json');
+    expect(process.exitCode).toBe(2);
+    expect(JSON.parse(stdout).error.code).toBe('INVALID_ARGUMENT');
+    expect(http.get).not.toHaveBeenCalled();
+  });
+  it('downloads futures mark klines into a kind-specific file', async () => {
+    await invoke(
+      'download',
+      ...args(),
+      '--market',
+      'usd-m',
+      '--kind',
+      'mark',
+      '--json',
+    );
+    const [result] = JSON.parse(stdout).results;
+    expect(result.status).toBe('success');
+    expect(result.outputPath.startsWith(join(dir, 'usd-m-mark_BTCUSDT_'))).toBe(
+      true,
+    );
+    expect(http.get.mock.calls[0][0]).toContain('/fapi/v1/markPriceKlines');
+    expect(
+      Object.keys(JSON.parse(await fs.readFile(result.outputPath, 'utf8'))[0]),
+    ).toEqual(['openTime', 'open', 'high', 'low', 'close', 'closeTime']);
+  });
+  it.each([
+    ['--market', 'spot', '--kind', 'mark'],
+    ['--market', 'usd-m', '--kind', 'last'],
+  ])('rejects unsupported kinds: %s %s %s %s', async (...extra) => {
+    await invoke('download', ...args(), ...extra, '--json');
+    expect(process.exitCode).toBe(2);
+    expect(http.get).not.toHaveBeenCalled();
+  });
   it('uses explicit root options with the subcommand', async () => {
     await invoke(
       '--market',
@@ -196,4 +326,36 @@ it('keeps JSON reporting when a flag value happens to be "describe"', async () =
   );
   expect(JSON.parse(stdout).error.code).toBe('INVALID_ARGUMENT');
   expect(stderr).toBe('');
+});
+
+it('gives 1m and 1M exports distinct names on case-insensitive filesystems', () => {
+  const name = (interval: string) =>
+    outputName(
+      'spot',
+      'BTCUSDT',
+      interval,
+      new Date(start),
+      new Date(start + 86400000),
+      'json',
+    ).toLowerCase();
+  expect(name('1M')).not.toBe(name('1m'));
+  expect(name('1M')).toContain('_1mo_');
+});
+
+it('reports resumed progress with a per-pair rate, percentage and ETA', () => {
+  const minute = 60000;
+  const state = { start, end: start + 4000 * minute };
+  const progress = (count: number) => ({
+    pair: 'BTCUSDT',
+    count,
+    cursor: start + count * minute,
+    requests: 1,
+    retries: 0,
+  });
+  formatProgress('BTCUSDT', progress(1000), state, 5000);
+  const line = formatProgress('BTCUSDT', progress(1500), state, 6000);
+  expect(line).toContain('37.5%');
+  expect(line).toContain('1500 candles');
+  expect(line).toContain('500/s');
+  expect(line).toContain('ETA 5s');
 });

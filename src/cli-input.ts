@@ -5,10 +5,11 @@ import {
   INTERVALS,
   invalid,
   MARKETS,
+  normalizeBaseUrl,
   normalizePair,
   parseDate,
 } from './config';
-import type { BinanceInterval, Market } from './types';
+import type { BinanceInterval, KlineKind, Market } from './types';
 
 export interface CliOptions {
   pair?: string;
@@ -26,6 +27,11 @@ export interface CliOptions {
   resume?: boolean;
   overwrite?: boolean;
   formatExplicit?: boolean;
+  kind: string;
+  timeout: string;
+  maxRetries: string;
+  requestDelay: string;
+  baseUrl?: string;
 }
 export function downloadOptions(command: Command): Command {
   return command
@@ -50,8 +56,17 @@ export function downloadOptions(command: Command): Command {
       '-o, --output <directory>',
       'Output directory; filenames are generated',
     )
-    .option('-f, --format <format>', 'Export file format (json, csv)', 'json')
+    .option(
+      '-f, --format <format>',
+      'Export file format (json, csv, jsonl)',
+      'json',
+    )
     .option('--market <market>', 'spot, usd-m or coin-m', 'spot')
+    .option(
+      '--kind <kind>',
+      'trade, or for usd-m and coin-m: mark, index (--pair is the underlying pair) or premium',
+      'trade',
+    )
     .option('--concurrency <number>', 'Concurrent symbols (1–4)', '2')
     .option(
       '--include-open',
@@ -62,6 +77,17 @@ export function downloadOptions(command: Command): Command {
       '--overwrite',
       'Replace existing exports after a successful download',
     )
+    .option('--timeout <ms>', 'Per-request timeout in milliseconds', '30000')
+    .option('--max-retries <n>', 'Retries for transient failures', '3')
+    .option(
+      '--request-delay <ms>',
+      'Minimum spacing between request starts in milliseconds',
+      '100',
+    )
+    .option(
+      '--base-url <url>',
+      'Replace the market REST root, e.g. https://api.binance.us/api/v3',
+    )
     .option(
       '--non-interactive',
       'Fail on missing arguments instead of prompting',
@@ -71,6 +97,18 @@ export function downloadOptions(command: Command): Command {
       'Emit one machine-readable report on stdout; implies non-interactive',
     );
 }
+/** Prompt validator: the parser's message is shown inline instead of exiting later. */
+const check =
+  (parse: (value: string) => unknown) =>
+  (value: string): true | string => {
+    try {
+      parse(value);
+      return true;
+    } catch (error) {
+      if (error instanceof DownloadError) return error.message;
+      throw error;
+    }
+  };
 export async function completeOptions(
   options: CliOptions,
 ): Promise<CliOptions> {
@@ -78,12 +116,27 @@ export async function completeOptions(
     invalid('--pair and --pairs are mutually exclusive');
   if (!Object.prototype.hasOwnProperty.call(MARKETS, options.market))
     invalid('Market must be spot, usd-m or coin-m');
-  if (options.format !== 'json' && options.format !== 'csv')
-    invalid('Format must be json or csv');
+  const { kinds } = MARKETS[options.market as Market];
+  if (!kinds.includes(options.kind as KlineKind))
+    invalid(`Kind must be ${kinds.join(', ')} for ${options.market}`);
+  if (!['json', 'csv', 'jsonl'].includes(options.format))
+    invalid('Format must be json, csv or jsonl');
   if (options.resume && options.overwrite)
     invalid('--resume and --overwrite are mutually exclusive');
   if (!/^[1-4]$/.test(options.concurrency))
     invalid('Concurrency must be between 1 and 4');
+  for (const [flag, value, minimum] of [
+    ['--timeout', options.timeout, 1],
+    ['--max-retries', options.maxRetries, 0],
+    ['--request-delay', options.requestDelay, 0],
+  ] as const)
+    if (
+      !/^\d+$/.test(value) ||
+      !Number.isSafeInteger(Number(value)) ||
+      Number(value) < minimum
+    )
+      invalid(`${flag} must be an integer of at least ${minimum}`);
+  if (options.baseUrl !== undefined) normalizeBaseUrl(options.baseUrl);
   if (options.start !== undefined) parseDate(options.start);
   if (options.end !== undefined) parseDate(options.end);
   if (
@@ -108,9 +161,7 @@ export async function completeOptions(
     );
   if (!missing.length) return options;
   const defaultEnd = options.end ?? new Date().toISOString().slice(0, 10);
-  const defaultStart = new Date(
-    parseDate(defaultEnd).getTime() - 30 * 86400000,
-  )
+  const defaultStart = new Date(parseDate(defaultEnd).getTime() - 30 * 86400000)
     .toISOString()
     .slice(0, 10);
   const questions: prompts.PromptObject[] = [
@@ -119,6 +170,7 @@ export async function completeOptions(
       type: 'text',
       message: 'Trading pair or contract:',
       initial: 'ETHUSDT',
+      validate: check(normalizePair),
     },
     {
       name: 'interval',
@@ -135,12 +187,14 @@ export async function completeOptions(
       type: 'text',
       message: 'Inclusive start (YYYY-MM-DD or ISO with timezone):',
       initial: defaultStart,
+      validate: check(parseDate),
     },
     {
       name: 'end',
       type: 'text',
       message: 'Exclusive end (YYYY-MM-DD or ISO with timezone):',
       initial: defaultEnd,
+      validate: check(parseDate),
     },
     {
       name: 'output',
@@ -158,6 +212,7 @@ export async function completeOptions(
       choices: [
         { title: 'JSON', value: 'json' },
         { title: 'CSV', value: 'csv' },
+        { title: 'JSON Lines', value: 'jsonl' },
       ],
     });
   const answers = await prompts(

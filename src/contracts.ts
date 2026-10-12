@@ -1,5 +1,5 @@
 import { fieldsFor } from './export';
-import type { Market } from './types';
+import type { KlineKind, Market } from './types';
 
 const integer = { type: 'integer', minimum: 0 };
 const error = {
@@ -59,8 +59,8 @@ export const reportSchema = {
     },
   },
 };
-export function candleSchema(market: Market) {
-  const fields = fieldsFor(market);
+export function candleSchema(market: Market, kind: KlineKind = 'trade') {
+  const fields = fieldsFor(market, kind);
   return {
     $schema: 'https://json-schema.org/draft/2020-12/schema',
     type: 'array',
@@ -73,7 +73,14 @@ export function candleSchema(market: Market) {
           field,
           ['openTime', 'closeTime', 'trades'].includes(field)
             ? integer
-            : { type: 'string', pattern: '^\\d+(?:\\.\\d+)?$' },
+            : {
+                type: 'string',
+                // Premium index prices can be negative.
+                pattern:
+                  kind === 'trade'
+                    ? '^\\d+(?:\\.\\d+)?$'
+                    : '^-?\\d+(?:\\.\\d+)?$',
+              },
         ]),
       ),
     },

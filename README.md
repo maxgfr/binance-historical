@@ -1,6 +1,6 @@
 # binance-historical
 
-Download historical Binance candles as JSON or CSV, from a CLI or TypeScript.
+Download historical Binance candles as JSON, CSV or JSON Lines, from a CLI or TypeScript.
 Supports Spot, USDⓈ-M futures and COIN-M futures, multiple symbols, bounded-memory
 exports and recovery after interruption. Public market data requires no API key.
 
@@ -49,22 +49,38 @@ binance-historical download --pairs BTCUSDT,ETHUSDT --market usd-m \
 # COIN-M contract
 binance-historical download --pair BTCUSD_PERP --market coin-m \
   --interval 1h --start 2024-01-01 --end 2024-02-01 --output ./data --format csv
+
+# USDⓈ-M mark price candles, one JSON object per line
+binance-historical download --pair BTCUSDT --market usd-m --kind mark \
+  --interval 1h --start 2024-01-01 --end 2024-02-01 --output ./data --format jsonl
 ```
+
+`--kind` selects the candle series. `trade` (default) is the traded-price
+series with volumes. On `usd-m` and `coin-m`, `mark`, `index` and `premium`
+download mark price, index price and premium index candles. These carry only
+`openTime`, `open`, `high`, `low`, `close` and `closeTime`; premium values can
+be negative. For `index`, `--pair` is the underlying pair (`BTCUSDT` on USDⓈ-M,
+`BTCUSD` on COIN-M) rather than a contract.
 
 | Option              | Meaning / default                                                                                                    |
 | ------------------- | -------------------------------------------------------------------------------------------------------------------- |
 | `-p, --pair`        | One symbol or exact futures contract identifier                                                                      |
 | `--pairs`           | Comma-separated symbols; exclusive with `--pair`                                                                     |
 | `--market`          | `spot` (default), `usd-m`, `coin-m`                                                                                  |
+| `--kind`            | `trade` (default); `mark`, `index` or `premium` on `usd-m` and `coin-m`                                              |
 | `-i, --interval`    | `1m`, `3m`, `5m`, `15m`, `30m`, `1h`, `2h`, `4h`, `6h`, `8h`, `12h`, `1d`, `3d`, `1w`, `1M`; Spot also supports `1s` |
 | `-s, --start`       | Inclusive date or timestamp                                                                                          |
 | `-e, --end`         | Exclusive date or timestamp                                                                                          |
 | `-o, --output`      | Directory; trailing separator is optional                                                                            |
-| `-f, --format`      | `json` (default) or `csv`                                                                                            |
+| `-f, --format`      | `json` (default), `csv` or `jsonl`                                                                                   |
 | `--concurrency`     | Concurrent symbols, 1–4; default 2                                                                                   |
 | `--include-open`    | Include forming candles                                                                                              |
-| `--resume`          | Resume an interrupted export using its matching checkpoint                                                          |
+| `--resume`          | Resume an interrupted export using its matching checkpoint                                                           |
 | `--overwrite`       | Replace an export after the new download completes                                                                   |
+| `--timeout`         | Per-request timeout in milliseconds; default 30000                                                                   |
+| `--max-retries`     | Retries for temporary failures; default 3                                                                            |
+| `--request-delay`   | Minimum milliseconds between request starts; default 100                                                             |
+| `--base-url`        | Replace the market REST root, such as `https://api.binance.us/api/v3`                                                |
 | `--non-interactive` | Fail on missing parameters instead of prompting                                                                      |
 | `--json`            | One JSON execution report on stdout; implies non-interactive                                                         |
 | `-h, --help`        | Help                                                                                                                 |
@@ -75,21 +91,30 @@ hybrid mode. Without a terminal, missing required parameters fail immediately.
 The date prompts suggest the last 30 complete UTC days: the start is 30 days
 before today and the exclusive end is today at midnight UTC. Press Enter to
 accept either date or type a replacement. If `--end` is supplied, the suggested
-start is 30 days before that date. Non-interactive downloads require explicit dates.
-The historical invocation without `download` remains supported. Human progress
-goes to stderr in terminals; JSON reports have no progress noise.
+start is 30 days before that date. The pair and date prompts reject invalid
+input as you type it. Non-interactive downloads require explicit dates.
+The historical invocation without `download` remains supported. In terminals,
+each symbol reports its progress on stderr at most once per second: percentage,
+candle count, rate and estimated time remaining. JSON reports have no progress
+noise.
 
 ## Recovery and files
 
 The output name contains market, normalized symbol, interval and both precise
-UTC timestamps. JSON contains an array of candle objects. CSV uses an explicit
-header; decimal prices and volumes retain their exchange precision.
+UTC timestamps, such as `spot_BTCUSDT_1h_2024-01-01T00-00-00.000Z_2024-02-01T00-00-00.000Z.csv`.
+The `1M` interval is written `1mo` so it never shares a file with `1m` on
+case-insensitive filesystems. A kind other than `trade` extends the market
+prefix, as in `usd-m-mark_BTCUSDT_…`. JSON contains an array of candle objects,
+JSON Lines one candle object per line, and CSV an explicit header followed by
+rows. Decimal prices and volumes retain their exchange precision.
 
 Exports write to `<output>.part` first and maintain
 `<output>.checkpoint.json`. A page is synchronized to disk before its cursor is
 committed. Only a completed file appears at the final path. Existing outputs
 are refused unless `--overwrite` is given or `--resume` finds a matching
-checkpoint from an interrupted export.
+checkpoint from an interrupted export. A new export that fails before its first
+page is saved (an invalid symbol, for instance) removes its `.part` and
+checkpoint, so the same command can simply be rerun.
 
 After an interruption, repeat the original command with `--resume`. Keep the
 checkpoint and partial file together. A resumed operation retains the original
@@ -102,13 +127,30 @@ successfully. Only the CSV or JSON export remains. Checkpoints are kept on
 failure or interruption so `--resume` can continue the export. To replace an
 already completed export, use `--overwrite`. A `.lock` prevents simultaneous
 writers to the same export. `--resume` recovers a stale lock when its recorded
-local process no longer exists. Locks from another host or with unreadable
-metadata require checking the owner before manual removal.
+local process no longer exists; the `--json` report marks such an export
+`resumable: true`. Locks from another host or with unreadable metadata require
+checking the owner before manual removal. On filesystems without hard links,
+such as exFAT, FAT32 or SMB shares, the final file is published by rename.
 
 Requests time out after 30 seconds. Temporary network errors, HTTP 429 and 5xx
 receive at most three retries, with exponential waits and `Retry-After` support.
+`--timeout`, `--max-retries` and `--request-delay` change these limits.
 Bans and permanent API errors stop the affected work. Other symbols finish;
 the overall command fails if any symbol fails. Ctrl+C closes files and returns 130. The request scheduler and rate-limit cooldown are shared by batch workers.
+
+Every response reports the request weight used in the current minute
+(`x-mbx-used-weight-1m`). Once it reaches 90% of the market budget (6000 on
+Spot, 2400 on USDⓈ-M and COIN-M), all workers pause until the next minute,
+before Binance answers 429 or bans the address. With `--base-url`, the budget
+of the other host is unknown (binance.us allows 1200), so only 429 responses
+slow the download. HTTP 451 means Binance refuses requests from your location:
+it fails with `RESTRICTED_LOCATION`, without retries; use `--base-url` with an
+endpoint available to you.
+
+On Spot and USDⓈ-M, a page with no candles triggers one probe for the next
+existing candle, so a start date long before a symbol's listing costs two
+requests instead of one per empty window. COIN-M paginates window by window,
+because its API can return the latest rows of a range.
 
 ## Agent skill (Claude Code and Codex)
 
@@ -202,17 +244,25 @@ const contracts = await getKlines({
 console.log(contracts[0]?.baseAssetVolume);
 ```
 
-`DownloadOptions` accepts `market`, `limit` (default 1000), `includeOpen`,
-`referenceTime`, `signal`, `onProgress`, `timeoutMs`, `maxRetries`, and
-`requestDelayMs` (default 100). `getKlines` collects an array; `iterateKlines`
+`DownloadOptions` accepts `market`, `kind` (default `trade`), `limit` (default
+1000), `includeOpen`, `referenceTime`, `signal`, `onProgress`, `timeoutMs`,
+`maxRetries`, `requestDelayMs` (default 100) and `baseUrl`. `exportKlines` also
+accepts `format: 'jsonl'`. `getKlines` collects an array; `iterateKlines`
 and `exportKlines` have bounded working memory. The library does not log errors
 or exit the process; it rejects with `DownloadError` and preserves API details.
 
 `Kline` is the unchanged Spot/USDⓈ-M schema. `CoinMKline` names contract and
 base-asset volumes separately: `volume` and `takerVolume` are contract volumes,
 `baseAssetVolume` and `takerBaseAssetVolume` are base-asset volumes. It has no
-`quoteAssetVolume` or `takerQuoteAssetVolume`. Prices and volumes are strings;
-timestamps are milliseconds.
+`quoteAssetVolume` or `takerQuoteAssetVolume`. Mark, index and premium kinds
+return `PriceKline` (prices and times only); `KlineFor<Market, Kind>` gives the
+candle type for any combination. Prices and volumes are strings; timestamps are
+milliseconds.
+
+```ts
+const mark = await getKlines({ ...options, pair: 'BTCUSDT', market: 'usd-m', kind: 'mark' });
+console.log(mark[0]?.close); // PriceKline: no volume fields
+```
 
 ## Compatibility and validation
 

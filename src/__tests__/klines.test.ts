@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { getKline, getKlines, iterateKlines } from '../klines';
-import { parseDate, windowEnd } from '../config';
-import type { DownloadOptions, Market } from '../types';
+import { normalizeBaseUrl, parseDate, windowEnd } from '../config';
+import type { DownloadOptions, KlineKind, Market } from '../types';
 
 jest.mock('axios');
 const http = axios as jest.Mocked<typeof axios>;
@@ -123,6 +123,25 @@ describe('historical client', () => {
         });
     },
   );
+  it('uses a custom base URL without a trailing slash', async () => {
+    http.get.mockResolvedValue({ data: [row(start)] });
+    await getKlines({
+      ...options,
+      baseUrl: 'https://api.binance.us/api/v3/',
+    });
+    expect(http.get.mock.calls[0][0]).toBe(
+      'https://api.binance.us/api/v3/klines',
+    );
+  });
+  it('strips trailing slashes in linear time', () => {
+    expect(normalizeBaseUrl('https://api.binance.us/api/v3///')).toBe(
+      'https://api.binance.us/api/v3',
+    );
+    const hostile = `https://a${'/'.repeat(200000)}x`;
+    const started = Date.now();
+    expect(normalizeBaseUrl(hostile)).toBe(hostile);
+    expect(Date.now() - started).toBeLessThan(1000);
+  });
   it('caps COIN-M windows at 200 days', async () => {
     http.get.mockResolvedValue({ data: [] });
     await getKlines({
@@ -159,6 +178,10 @@ describe('historical client', () => {
     { timeoutMs: 0 },
     { market: 'bad' },
     { market: 'coin-m', interval: '1s' },
+    { baseUrl: 'ftp://x' },
+    { kind: 'mark' },
+    { market: 'usd-m', kind: 'last' },
+    { baseUrl: 'not a url' },
   ])('rejects invalid input %j before network', async (change) => {
     await expect(
       getKlines({ ...options, ...change } as DownloadOptions),
@@ -232,6 +255,144 @@ describe('calendar pagination', () => {
       endDate: new Date('2024-05-01T00:00:00Z'),
     });
     expect(result.map((c) => c.openTime)).toEqual(rows.map((r) => r[0]));
+    expect(http.get).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe('empty range seeking', () => {
+  beforeEach(() => jest.resetAllMocks());
+  const minute = 60000;
+  const listed = start + 5000 * minute;
+  const serve = () =>
+    http.get.mockImplementation(async (_url, config) => {
+      const { startTime, endTime, limit } = config!.params;
+      const data = [];
+      for (
+        let t = Math.max(startTime, listed);
+        t <= (endTime ?? Infinity) && data.length < limit;
+        t += minute
+      )
+        data.push(row(t));
+      return { data };
+    });
+  it.each(['spot', 'usd-m'] as Market[])(
+    'jumps to the first %s candle with one probe instead of empty pages',
+    async (market) => {
+      serve();
+      const result = await getKlines({
+        ...options,
+        market,
+        endDate: new Date(start + 7000 * minute),
+      });
+      expect(result).toHaveLength(2000);
+      expect(result[0].openTime).toBe(listed);
+      expect(result.at(-1)?.openTime).toBe(start + 6999 * minute);
+      expect(http.get).toHaveBeenCalledTimes(4);
+      expect(http.get.mock.calls[1][1]?.params).toEqual({
+        symbol: 'BTCUSDT',
+        interval: '1m',
+        startTime: start + 1000 * minute,
+        limit: 1,
+      });
+    },
+  );
+  it('stops at once when the probe finds no later candle', async () => {
+    http.get.mockResolvedValue({ data: [] });
+    const progress = jest.fn();
+    expect(
+      await getKlines({
+        ...options,
+        endDate: new Date(start + 7000 * minute),
+        onProgress: progress,
+      }),
+    ).toEqual([]);
+    expect(http.get).toHaveBeenCalledTimes(2);
+    expect(progress).toHaveBeenLastCalledWith(
+      expect.objectContaining({ cursor: start + 7000 * minute, requests: 2 }),
+    );
+  });
+  it('never probes COIN-M, whose responses are anchored to endTime', async () => {
+    serve();
+    const result = await getKlines({
+      ...options,
+      market: 'coin-m',
+      endDate: new Date(start + 7000 * minute),
+    });
+    expect(result).toHaveLength(2000);
+    expect(http.get).toHaveBeenCalledTimes(7);
+    for (const [, config] of http.get.mock.calls)
+      expect(config!.params.endTime).toBeDefined();
+  });
+});
+
+describe('price kline kinds', () => {
+  beforeEach(() => jest.resetAllMocks());
+  const priceRow = (t: number) => [
+    t,
+    '-0.00054796',
+    '0.00049602',
+    '-0.00130507',
+    '-0.00037572',
+    '0',
+    t + 59999,
+    '0',
+    7068,
+    '0',
+    '0',
+    '0',
+  ];
+  it.each(
+    (['usd-m', 'coin-m'] as Market[]).flatMap((market) =>
+      (['mark', 'index', 'premium'] as KlineKind[]).map((kind) => [
+        market,
+        kind,
+      ]),
+    ),
+  )(
+    'requests %s %s klines and maps price-only candles',
+    async (market, kind) => {
+      http.get.mockResolvedValue({ data: [priceRow(start)] });
+      const [candle] = await getKlines({ ...options, market, kind });
+      const [url, config] = http.get.mock.calls[0];
+      const root = market === 'usd-m' ? '/fapi/v1/' : '/dapi/v1/';
+      const endpoint = {
+        mark: 'markPriceKlines',
+        index: 'indexPriceKlines',
+        premium: 'premiumIndexKlines',
+      }[kind as 'mark'];
+      expect(url).toContain(`${root}${endpoint}`);
+      expect(config!.params).toMatchObject(
+        kind === 'index' ? { pair: 'BTCUSDT' } : { symbol: 'BTCUSDT' },
+      );
+      expect(config!.params).not.toHaveProperty(
+        kind === 'index' ? 'symbol' : 'pair',
+      );
+      expect(candle).toEqual({
+        openTime: start,
+        open: '-0.00054796',
+        high: '0.00049602',
+        low: '-0.00130507',
+        close: '-0.00037572',
+        closeTime: start + 59999,
+      });
+    },
+  );
+  it('still rejects malformed price rows', async () => {
+    http.get.mockResolvedValue({
+      data: [priceRow(start).map((v, i) => (i === 2 ? 'NaN' : v))],
+    });
+    await expect(
+      getKlines({ ...options, market: 'usd-m', kind: 'mark' }),
+    ).rejects.toMatchObject({ code: 'INVALID_RESPONSE' });
+  });
+  it('does not probe empty ranges for price kinds', async () => {
+    http.get.mockResolvedValue({ data: [] });
+    await getKlines({
+      ...options,
+      market: 'usd-m',
+      kind: 'mark',
+      endDate: new Date(start + 3000 * 60000),
+    });
     expect(http.get).toHaveBeenCalledTimes(3);
   });
 });

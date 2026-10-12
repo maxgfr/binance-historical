@@ -1,8 +1,11 @@
 import axios from 'axios';
 import { promises as fs } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { spawnSync } from 'node:child_process';
+import { hostname, tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { createHash } from 'node:crypto';
 import { exportKlines } from '../export';
+import { isStaleLock } from '../lock';
 import type { ExportOptions } from '../export';
 
 jest.mock('axios');
@@ -47,7 +50,7 @@ afterEach(async () => {
   await fs.rm(dir, { recursive: true, force: true });
 });
 describe('durable exports', () => {
-  it.each(['json', 'csv'] as const)(
+  it.each(['json', 'csv', 'jsonl'] as const)(
     'resumes %s after a partially written page and produces identical bytes',
     async (format) => {
       const complete = { ...options, format };
@@ -137,6 +140,71 @@ describe('durable exports', () => {
     );
     expect(await fs.readdir(join(dir, 'nested'))).toEqual(['data.json']);
   });
+  it('writes one candle object per line in jsonl, and nothing when empty', async () => {
+    await exportKlines({ ...options, format: 'jsonl' });
+    const lines = (await fs.readFile(options.outputPath, 'utf8')).split('\n');
+    expect(lines).toHaveLength(4);
+    expect(lines[3]).toBe('');
+    expect(lines.slice(0, 3).map((l) => JSON.parse(l).openTime)).toEqual([
+      start,
+      start + 60000,
+      start + 120000,
+    ]);
+    http.get.mockResolvedValue({ data: [] });
+    const empty = join(dir, 'empty.jsonl');
+    await exportKlines({ ...options, format: 'jsonl', outputPath: empty });
+    expect(await fs.readFile(empty, 'utf8')).toBe('');
+  });
+  it('writes price-only CSV columns for mark klines', async () => {
+    await exportKlines({
+      ...options,
+      market: 'usd-m',
+      kind: 'mark',
+      format: 'csv',
+    });
+    const [header, first] = (
+      await fs.readFile(options.outputPath, 'utf8')
+    ).split('\n');
+    expect(header).toBe('openTime,open,high,low,close,closeTime');
+    expect(first).toBe(`${start},1,2,0.5,1.5,${start + 59999}`);
+  });
+  it('keeps the fingerprint of trade checkpoints written by earlier versions', async () => {
+    http.get
+      .mockResolvedValueOnce({ data: [row(start)] })
+      .mockRejectedValueOnce(new Error('offline'));
+    await expect(exportKlines(options)).rejects.toThrow('offline');
+    const checkpoint = JSON.parse(
+      await fs.readFile(`${options.outputPath}.checkpoint.json`, 'utf8'),
+    );
+    expect(checkpoint.fingerprint).toBe(
+      createHash('sha256')
+        .update(
+          JSON.stringify({
+            pair: 'BTCUSDT',
+            market: 'spot',
+            interval: '1m',
+            start,
+            end: start + 180000,
+            includeOpen: false,
+            format: 'json',
+          }),
+        )
+        .digest('hex'),
+    );
+    await expect(
+      exportKlines({ ...options, market: 'usd-m', resume: true }),
+    ).rejects.toMatchObject({ code: 'INVALID_CHECKPOINT' });
+  });
+  it('does not resume a trade checkpoint as another kind', async () => {
+    const futures = { ...options, market: 'usd-m' as const };
+    http.get
+      .mockResolvedValueOnce({ data: [row(start)] })
+      .mockRejectedValueOnce(new Error('offline'));
+    await expect(exportKlines(futures)).rejects.toThrow('offline');
+    await expect(
+      exportKlines({ ...futures, kind: 'mark', resume: true }),
+    ).rejects.toMatchObject({ code: 'INVALID_CHECKPOINT' });
+  });
   it('uses COIN-M CSV field names and units', async () => {
     await exportKlines({ ...options, market: 'coin-m', format: 'csv' });
     const text = await fs.readFile(options.outputPath, 'utf8');
@@ -165,6 +233,18 @@ describe('durable exports', () => {
     ).toHaveLength(3);
     expect(await fs.readdir(join(dir, 'nested'))).toEqual(['data.json']);
   });
+  it('leaves nothing behind when a new export fails before its first page', async () => {
+    http.get.mockRejectedValue({
+      response: { status: 400, data: { code: -1121, msg: 'Invalid symbol.' } },
+    });
+    await expect(exportKlines(options)).rejects.toMatchObject({
+      binanceCode: -1121,
+    });
+    expect(await fs.readdir(join(dir, 'nested'))).toEqual([]);
+    await expect(exportKlines(options)).rejects.toMatchObject({
+      binanceCode: -1121,
+    });
+  });
   it('refuses a second writer', async () => {
     await fs.mkdir(join(dir, 'nested'));
     await fs.writeFile(`${options.outputPath}.lock`, 'another writer');
@@ -172,6 +252,36 @@ describe('durable exports', () => {
       code: 'EXPORT_LOCKED',
     });
     expect(http.get).not.toHaveBeenCalled();
+  });
+});
+
+describe('stale locks', () => {
+  const deadPid = () => spawnSync(process.execPath, ['-e', '']).pid;
+  it('recognizes a dead local writer, which resume recovers', async () => {
+    http.get
+      .mockResolvedValueOnce({ data: [row(start)] })
+      .mockRejectedValueOnce(new Error('offline'));
+    await expect(exportKlines(options)).rejects.toThrow('offline');
+    const lockPath = `${options.outputPath}.lock`;
+    await fs.writeFile(
+      lockPath,
+      JSON.stringify({ pid: deadPid(), hostname: hostname() }),
+    );
+    expect(await isStaleLock(lockPath)).toBe(true);
+    await expect(exportKlines(options)).rejects.toMatchObject({
+      code: 'EXPORT_LOCKED',
+    });
+    expect((await exportKlines({ ...options, resume: true })).count).toBe(3);
+    await expect(fs.access(lockPath)).rejects.toThrow();
+  });
+  it.each([
+    ['another host', () => ({ pid: deadPid(), hostname: 'elsewhere' })],
+    ['a live writer', () => ({ pid: process.pid, hostname: hostname() })],
+    ['an unreadable lock', () => 'garbage'],
+  ])('does not consider %s stale', async (_name, owner) => {
+    const lockPath = join(dir, 'data.json.lock');
+    await fs.writeFile(lockPath, JSON.stringify(owner()));
+    expect(await isStaleLock(lockPath)).toBe(false);
   });
 });
 
@@ -187,6 +297,21 @@ describe('finalization recovery', () => {
       JSON.parse(await fs.readFile(options.outputPath, 'utf8')),
     ).toHaveLength(3);
   });
+  it.each(['EPERM', 'ENOTSUP', 'EOPNOTSUPP', 'ENOSYS', 'EXDEV'])(
+    'publishes by rename when hard links are unsupported (%s)',
+    async (code) => {
+      jest
+        .spyOn(fs, 'link')
+        .mockRejectedValueOnce(
+          Object.assign(new Error('no hard links'), { code }),
+        );
+      expect((await exportKlines(options)).count).toBe(3);
+      expect(
+        JSON.parse(await fs.readFile(options.outputPath, 'utf8')),
+      ).toHaveLength(3);
+      expect(await fs.readdir(join(dir, 'nested'))).toEqual(['data.json']);
+    },
+  );
   it('recovers interruption between linking the final file and removing the partial name', async () => {
     jest.spyOn(fs, 'unlink').mockRejectedValueOnce(new Error('unlink failure'));
     await expect(exportKlines(options)).rejects.toThrow('unlink failure');
