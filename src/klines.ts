@@ -95,38 +95,37 @@ export async function* iteratePages(
   let requests = 0;
   let retries = 0;
   let lastOpen = -1;
+  const url = `${baseUrl ?? config.adapter.baseUrl}/klines`;
+  const request = (params: Record<string, string | number>) =>
+    context.get(url, params, {
+      ...options,
+      weightLimit: baseUrl ? undefined : config.adapter.weightLimit,
+      onRetry: () => {
+        retries++;
+        requests++;
+        options.onProgress?.({
+          pair: config.pair,
+          count,
+          cursor,
+          requests,
+          retries,
+        });
+      },
+    });
   while (cursor < end) {
     checkAbort(options.signal);
-    const nextCursor = Math.min(
+    let nextCursor = Math.min(
       end,
       windowEnd(cursor, config.interval, config.limit),
       cursor + config.adapter.windowMs,
     );
-    const raw = await context.get(
-      `${baseUrl ?? config.adapter.baseUrl}/klines`,
-      {
-        symbol: config.pair,
-        interval: config.interval,
-        startTime: cursor,
-        endTime: nextCursor - 1,
-        limit: config.limit,
-      },
-      {
-        ...options,
-        weightLimit: baseUrl ? undefined : config.adapter.weightLimit,
-        onRetry: () => {
-          retries++;
-          requests++;
-          options.onProgress?.({
-            pair: config.pair,
-            count,
-            cursor,
-            requests,
-            retries,
-          });
-        },
-      },
-    );
+    const raw = await request({
+      symbol: config.pair,
+      interval: config.interval,
+      startTime: cursor,
+      endTime: nextCursor - 1,
+      limit: config.limit,
+    });
     requests++;
     const rows = validateRows(raw);
     if (rows.length > config.limit)
@@ -142,6 +141,23 @@ export async function* iteratePages(
       lastOpen = row[0];
       if (!config.includeOpen && row[6] >= config.referenceTime) continue;
       data.push(mapRow(row, config.market));
+    }
+    // Before a listing or after a delisting, one probe replaces every empty page.
+    if (
+      !rows.length &&
+      config.adapter.seekable &&
+      windowEnd(nextCursor, config.interval, config.limit) < end
+    ) {
+      const [first] = validateRows(
+        await request({
+          symbol: config.pair,
+          interval: config.interval,
+          startTime: nextCursor,
+          limit: 1,
+        }),
+      );
+      requests++;
+      nextCursor = first ? Math.min(end, Math.max(nextCursor, first[0])) : end;
     }
     count += data.length;
     yield { data, nextCursor, requests, retries };

@@ -38,6 +38,8 @@ export const MARKETS: Record<
     /** REQUEST_WEIGHT per minute, from exchangeInfo rateLimits. */
     weightLimit: number;
     windowMs: number;
+    /** Results ascend from startTime, so an empty range can be skipped with one probe. */
+    seekable: boolean;
     intervals: BinanceInterval[];
   }
 > = {
@@ -46,6 +48,7 @@ export const MARKETS: Record<
     maxLimit: 1000,
     weightLimit: 6000,
     windowMs: Infinity,
+    seekable: true,
     intervals: INTERVALS,
   },
   'usd-m': {
@@ -53,6 +56,7 @@ export const MARKETS: Record<
     maxLimit: 1500,
     weightLimit: 2400,
     windowMs: Infinity,
+    seekable: true,
     intervals: INTERVALS.filter((i) => i !== '1s'),
   },
   'coin-m': {
@@ -60,6 +64,8 @@ export const MARKETS: Record<
     maxLimit: 1500,
     weightLimit: 2400,
     windowMs: 200 * 86400000,
+    // DAPI can return the latest rows of a range, which a probe could skip past.
+    seekable: false,
     intervals: INTERVALS.filter((i) => i !== '1s'),
   },
 };

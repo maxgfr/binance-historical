@@ -235,3 +235,69 @@ describe('calendar pagination', () => {
     expect(http.get).toHaveBeenCalledTimes(3);
   });
 });
+
+describe('empty range seeking', () => {
+  beforeEach(() => jest.resetAllMocks());
+  const minute = 60000;
+  const listed = start + 5000 * minute;
+  const serve = () =>
+    http.get.mockImplementation(async (_url, config) => {
+      const { startTime, endTime, limit } = config!.params;
+      const data = [];
+      for (
+        let t = Math.max(startTime, listed);
+        t <= (endTime ?? Infinity) && data.length < limit;
+        t += minute
+      )
+        data.push(row(t));
+      return { data };
+    });
+  it.each(['spot', 'usd-m'] as Market[])(
+    'jumps to the first %s candle with one probe instead of empty pages',
+    async (market) => {
+      serve();
+      const result = await getKlines({
+        ...options,
+        market,
+        endDate: new Date(start + 7000 * minute),
+      });
+      expect(result).toHaveLength(2000);
+      expect(result[0].openTime).toBe(listed);
+      expect(result.at(-1)?.openTime).toBe(start + 6999 * minute);
+      expect(http.get).toHaveBeenCalledTimes(4);
+      expect(http.get.mock.calls[1][1]?.params).toEqual({
+        symbol: 'BTCUSDT',
+        interval: '1m',
+        startTime: start + 1000 * minute,
+        limit: 1,
+      });
+    },
+  );
+  it('stops at once when the probe finds no later candle', async () => {
+    http.get.mockResolvedValue({ data: [] });
+    const progress = jest.fn();
+    expect(
+      await getKlines({
+        ...options,
+        endDate: new Date(start + 7000 * minute),
+        onProgress: progress,
+      }),
+    ).toEqual([]);
+    expect(http.get).toHaveBeenCalledTimes(2);
+    expect(progress).toHaveBeenLastCalledWith(
+      expect.objectContaining({ cursor: start + 7000 * minute, requests: 2 }),
+    );
+  });
+  it('never probes COIN-M, whose responses are anchored to endTime', async () => {
+    serve();
+    const result = await getKlines({
+      ...options,
+      market: 'coin-m',
+      endDate: new Date(start + 7000 * minute),
+    });
+    expect(result).toHaveLength(2000);
+    expect(http.get).toHaveBeenCalledTimes(7);
+    for (const [, config] of http.get.mock.calls)
+      expect(config!.params.endTime).toBeDefined();
+  });
+});
