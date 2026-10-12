@@ -35,6 +35,8 @@ export const MARKETS: Record<
   {
     baseUrl: string;
     maxLimit: number;
+    /** REQUEST_WEIGHT per minute, from exchangeInfo rateLimits. */
+    weightLimit: number;
     windowMs: number;
     intervals: BinanceInterval[];
   }
@@ -42,18 +44,21 @@ export const MARKETS: Record<
   spot: {
     baseUrl: 'https://api.binance.com/api/v3',
     maxLimit: 1000,
+    weightLimit: 6000,
     windowMs: Infinity,
     intervals: INTERVALS,
   },
   'usd-m': {
     baseUrl: 'https://fapi.binance.com/fapi/v1',
     maxLimit: 1500,
+    weightLimit: 2400,
     windowMs: Infinity,
     intervals: INTERVALS.filter((i) => i !== '1s'),
   },
   'coin-m': {
     baseUrl: 'https://dapi.binance.com/dapi/v1',
     maxLimit: 1500,
+    weightLimit: 2400,
     windowMs: 200 * 86400000,
     intervals: INTERVALS.filter((i) => i !== '1s'),
   },

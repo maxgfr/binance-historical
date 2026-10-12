@@ -35,6 +35,8 @@ export class RequestContext {
       timeoutMs?: number;
       maxRetries?: number;
       requestDelayMs?: number;
+      /** Per-minute request weight budget; unknown budgets rely on 429s. */
+      weightLimit?: number;
       signal?: AbortSignal;
       onRetry?: () => void;
     },
@@ -57,6 +59,12 @@ export class RequestContext {
           signal,
           timeout: options.timeoutMs ?? 30000,
         });
+        const used = Number(response.headers?.['x-mbx-used-weight-1m']);
+        if (options.weightLimit && used >= options.weightLimit * 0.9) {
+          // Pause every worker until the weight window resets, before a 429.
+          const now = Date.now();
+          this.cooldown = Math.max(this.cooldown, now - (now % 60000) + 61000);
+        }
         return response.data;
       } catch (error) {
         checkAbort(signal);
@@ -81,13 +89,19 @@ export class RequestContext {
             'ENOTFOUND',
             'ERR_NETWORK',
           ].includes(e.code ?? '');
+        const message =
+          e.response?.data?.msg || e.message || 'Binance request failed';
         const failure = new DownloadError(
-          e.response?.data?.msg || e.message || 'Binance request failed',
+          status === 451
+            ? `${message}. Binance refuses requests from this location; use --base-url with an endpoint available to you`
+            : message,
           status === 418
             ? 'BANNED'
             : status === 429
               ? 'RATE_LIMITED'
-              : 'NETWORK_ERROR',
+              : status === 451
+                ? 'RESTRICTED_LOCATION'
+                : 'NETWORK_ERROR',
           retryable,
           status,
           e.response?.data?.code,

@@ -113,6 +113,7 @@ export async function* iteratePages(
       },
       {
         ...options,
+        weightLimit: baseUrl ? undefined : config.adapter.weightLimit,
         onRetry: () => {
           retries++;
           requests++;

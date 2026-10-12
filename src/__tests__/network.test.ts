@@ -118,4 +118,56 @@ describe('shared rate limits', () => {
     expect(times[1] - times[0]).toBeGreaterThanOrEqual(3000);
     expect(times[2] - times[1]).toBeGreaterThanOrEqual(100);
   });
+  const weighted = async (used: string, weightLimit?: number) => {
+    const base = Date.UTC(2024, 0, 1, 0, 0, 30);
+    jest.setSystemTime(base);
+    const times: number[] = [];
+    http.get.mockImplementation(async () => {
+      times.push(Date.now() - base);
+      return {
+        data: [],
+        headers: { 'x-mbx-used-weight-1m': times.length === 1 ? used : '10' },
+      };
+    });
+    const context = new RequestContext();
+    const work = Promise.all(
+      [0, 1, 2].map(() =>
+        context.get('https://example.com', {}, { weightLimit }),
+      ),
+    );
+    await jest.advanceTimersByTimeAsync(40000);
+    await work;
+    return times;
+  };
+  it('pauses every worker until the next minute when the used weight nears the budget', async () => {
+    const times = await weighted('2200', 2400);
+    expect(times[0]).toBe(0);
+    expect(times.slice(1)).toHaveLength(2);
+    for (const time of times.slice(1))
+      expect(time).toBeGreaterThanOrEqual(31000);
+  });
+  it.each([
+    ['2000', 2400],
+    ['2200', undefined],
+  ])(
+    'does not pause below the threshold or without a known budget (%s/%s)',
+    async (used, limit) => {
+      const times = await weighted(used, limit);
+      expect(times.at(-1)).toBeLessThan(1000);
+    },
+  );
+  it('reports restricted locations without retrying', async () => {
+    http.get.mockRejectedValue({
+      response: { status: 451, data: { code: 0, msg: 'restricted location' } },
+    });
+    await expect(
+      new RequestContext().get('https://example.com', {}, {}),
+    ).rejects.toMatchObject({
+      code: 'RESTRICTED_LOCATION',
+      retryable: false,
+      status: 451,
+      message: expect.stringContaining('--base-url'),
+    });
+    expect(http.get).toHaveBeenCalledTimes(1);
+  });
 });
