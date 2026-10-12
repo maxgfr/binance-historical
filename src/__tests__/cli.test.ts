@@ -1,7 +1,8 @@
 import axios from 'axios';
 import prompts from 'prompts';
 import { promises as fs } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { spawnSync } from 'node:child_process';
+import { hostname, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { runCommand } from '../cli';
 import { outputName } from '../cli-download';
@@ -169,6 +170,31 @@ describe('actual CLI', () => {
       if (descriptor) Object.defineProperty(process.stdin, 'isTTY', descriptor);
       else Reflect.deleteProperty(process.stdin, 'isTTY');
     }
+  });
+  it('reports an export locked by a dead local writer as resumable', async () => {
+    const outputPath = join(
+      dir,
+      outputName(
+        'spot',
+        'BTCUSDT',
+        '1m',
+        new Date(start),
+        new Date(start + 60000),
+        'json',
+      ),
+    );
+    await fs.writeFile(`${outputPath}.checkpoint.json`, '{}');
+    const { pid } = spawnSync(process.execPath, ['-e', '']);
+    await fs.writeFile(
+      `${outputPath}.lock`,
+      JSON.stringify({ pid, hostname: hostname() }),
+    );
+    await invoke('download', ...args(), '--json');
+    const [result] = JSON.parse(stdout).results;
+    expect(result.error.code).toBe('EXPORT_LOCKED');
+    expect(result.error.message).toContain('--resume');
+    expect(result.resumable).toBe(true);
+    expect(http.get).not.toHaveBeenCalled();
   });
   it('uses explicit root options with the subcommand', async () => {
     await invoke(

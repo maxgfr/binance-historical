@@ -1,8 +1,10 @@
 import axios from 'axios';
 import { promises as fs } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { spawnSync } from 'node:child_process';
+import { hostname, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { exportKlines } from '../export';
+import { isStaleLock } from '../lock';
 import type { ExportOptions } from '../export';
 
 jest.mock('axios');
@@ -184,6 +186,36 @@ describe('durable exports', () => {
       code: 'EXPORT_LOCKED',
     });
     expect(http.get).not.toHaveBeenCalled();
+  });
+});
+
+describe('stale locks', () => {
+  const deadPid = () => spawnSync(process.execPath, ['-e', '']).pid;
+  it('recognizes a dead local writer, which resume recovers', async () => {
+    http.get
+      .mockResolvedValueOnce({ data: [row(start)] })
+      .mockRejectedValueOnce(new Error('offline'));
+    await expect(exportKlines(options)).rejects.toThrow('offline');
+    const lockPath = `${options.outputPath}.lock`;
+    await fs.writeFile(
+      lockPath,
+      JSON.stringify({ pid: deadPid(), hostname: hostname() }),
+    );
+    expect(await isStaleLock(lockPath)).toBe(true);
+    await expect(exportKlines(options)).rejects.toMatchObject({
+      code: 'EXPORT_LOCKED',
+    });
+    expect((await exportKlines({ ...options, resume: true })).count).toBe(3);
+    await expect(fs.access(lockPath)).rejects.toThrow();
+  });
+  it.each([
+    ['another host', () => ({ pid: deadPid(), hostname: 'elsewhere' })],
+    ['a live writer', () => ({ pid: process.pid, hostname: hostname() })],
+    ['an unreadable lock', () => 'garbage'],
+  ])('does not consider %s stale', async (_name, owner) => {
+    const lockPath = join(dir, 'data.json.lock');
+    await fs.writeFile(lockPath, JSON.stringify(owner()));
+    expect(await isStaleLock(lockPath)).toBe(false);
   });
 });
 

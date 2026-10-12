@@ -7,6 +7,7 @@ import {
   validateDownload,
 } from './config';
 import { exportKlines } from './export';
+import { isStaleLock } from './lock';
 import { RequestContext } from './network';
 import { completeOptions } from './cli-input';
 import type { CliOptions } from './cli-input';
@@ -144,12 +145,23 @@ export async function download(
         results[index] = { ...result, status: 'success', resumable: false };
       } catch (error) {
         const detail = errorReport(error);
-        const resumable =
-          !['INVALID_CHECKPOINT', 'EXPORT_LOCKED'].includes(detail.code) &&
-          (await fs.access(`${outputPath}.checkpoint.json`).then(
+        const hasCheckpoint = await fs
+          .access(`${outputPath}.checkpoint.json`)
+          .then(
             () => true,
             () => false,
-          ));
+          );
+        // A writer killed without cleanup leaves a lock that --resume recovers.
+        const staleLock =
+          detail.code === 'EXPORT_LOCKED' &&
+          hasCheckpoint &&
+          (await isStaleLock(`${outputPath}.lock`));
+        if (staleLock)
+          detail.message = `Export is locked by a dead local writer: ${outputPath}.lock. Rerun with --resume to recover it`;
+        const resumable =
+          staleLock ||
+          (!['INVALID_CHECKPOINT', 'EXPORT_LOCKED'].includes(detail.code) &&
+            hasCheckpoint);
         results[index] = {
           pair,
           market,
