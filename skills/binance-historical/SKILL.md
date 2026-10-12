@@ -1,6 +1,6 @@
 ---
 name: binance-historical
-description: Download and resume Binance historical candles for Spot and futures markets with JSON or CSV exports. Use only when the user explicitly asks for binance-historical or a Binance candle download.
+description: Download and resume Binance historical candles for Spot and futures markets with JSON, CSV or JSON Lines exports. Use only when the user explicitly asks for binance-historical or a Binance candle download.
 metadata:
   opencode/autoinvoke: 'true'
 ---
@@ -29,6 +29,12 @@ as `BTCUSDT` for USDⓈ-M and `BTCUSD_PERP` for COIN-M; dated contracts require
 their exact exchange symbol. Preserve the requested contract rather than
 substituting an underlying pair.
 
+Pass `--kind` only when the request names a futures price series: `mark` for
+mark price, `index` for index price, `premium` for the premium index. These
+exist on `usd-m` and `coin-m` only and carry prices without volumes. For
+`index`, `--pair` is the underlying pair (`BTCUSDT`, or `BTCUSD` on COIN-M).
+Traded candles, the default `trade` kind, need no flag.
+
 Dates without a time mean midnight UTC. To request January 2024 in full, use
 `--start 2024-01-01 --end 2024-02-01`. Convert a requested local timezone to an
 explicit ISO timestamp with offset. The exclusive end lets adjacent exports
@@ -38,7 +44,9 @@ only when the request calls for an unfinished candle.
 ## Execute without prompts
 
 Always pass `--non-interactive --json` and an explicit output directory.
-`--format` selects the file encoding; `--json` selects the command report.
+`--format` selects the file encoding: `json`, `csv`, or `jsonl` (one candle
+object per line) when the user wants line-oriented or streamable output.
+`--json` selects the command report.
 Prices and volumes remain decimal strings. Read the result report rather than
 loading a large candle file into the conversation.
 
@@ -68,16 +76,20 @@ report and dates describe the requested slice, not a promise of continuous
 trading or complete exchange history.
 
 For an interrupted export whose result is `resumable: true`, rerun the same
-command and add `--resume`. Keep the original market, symbols, dates, format,
+command and add `--resume`. This includes `EXPORT_LOCKED` results marked
+resumable: their lock belongs to a writer that no longer runs, and `--resume`
+recovers it. Keep the original market, kind, symbols, dates, format,
 output path and open-candle policy. The checkpoint preserves the original
 reference instant; it does not extend the export through the current time.
 
 The downloader retries temporary network errors itself. On a persistent error,
 use the error code and message to decide whether to resume, correct a symbol,
 or report an unavailable market. Stop on bans and checkpoint corruption.
+`RESTRICTED_LOCATION` means Binance refuses the caller's location: report it,
+and use `--base-url` only with an endpoint the user names.
 Use `--overwrite` only when replacing the existing export is requested;
 it is mutually exclusive with `--resume`. Keep `.part` and
 `.checkpoint.json` files together until the export is finished.
 After success, the checkpoint is deleted automatically and only the exported
-CSV or JSON remains. Use that final file directly; `--resume` requires a
+file remains. Use that final file directly; `--resume` requires a
 checkpoint from an interrupted export.
