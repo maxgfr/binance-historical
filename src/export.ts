@@ -46,6 +46,7 @@ export function csvRow(candle: AnyKline, market: Market): string {
     })
     .join(',');
 }
+const LINK_UNSUPPORTED = ['EPERM', 'ENOTSUP', 'EOPNOTSUPP', 'ENOSYS', 'EXDEV'];
 interface Checkpoint {
   version: 1;
   fingerprint: string;
@@ -394,8 +395,28 @@ export async function exportKlines(
       await fs.rename(partPath, outputPath);
     else {
       // link is an atomic create-if-absent, unlike rename which silently replaces.
-      await fs.link(partPath, outputPath);
-      await fs.unlink(partPath);
+      let linked = true;
+      try {
+        await fs.link(partPath, outputPath);
+      } catch (error) {
+        if (
+          !LINK_UNSUPPORTED.includes(
+            (error as NodeJS.ErrnoException).code ?? '',
+          )
+        )
+          throw error;
+        linked = false;
+      }
+      if (linked) await fs.unlink(partPath);
+      else {
+        // exFAT, FAT32 and SMB lack hard links; the export lock keeps our own writers out.
+        if (await exists(outputPath))
+          throw new DownloadError(
+            'Destination was created during download',
+            'DESTINATION_EXISTS',
+          );
+        await fs.rename(partPath, outputPath);
+      }
     }
     await fs.rm(checkpointPath, { force: true });
     return {

@@ -199,6 +199,21 @@ describe('finalization recovery', () => {
       JSON.parse(await fs.readFile(options.outputPath, 'utf8')),
     ).toHaveLength(3);
   });
+  it.each(['EPERM', 'ENOTSUP', 'EOPNOTSUPP', 'ENOSYS', 'EXDEV'])(
+    'publishes by rename when hard links are unsupported (%s)',
+    async (code) => {
+      jest
+        .spyOn(fs, 'link')
+        .mockRejectedValueOnce(
+          Object.assign(new Error('no hard links'), { code }),
+        );
+      expect((await exportKlines(options)).count).toBe(3);
+      expect(
+        JSON.parse(await fs.readFile(options.outputPath, 'utf8')),
+      ).toHaveLength(3);
+      expect(await fs.readdir(join(dir, 'nested'))).toEqual(['data.json']);
+    },
+  );
   it('recovers interruption between linking the final file and removing the partial name', async () => {
     jest.spyOn(fs, 'unlink').mockRejectedValueOnce(new Error('unlink failure'));
     await expect(exportKlines(options)).rejects.toThrow('unlink failure');
