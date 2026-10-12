@@ -3,6 +3,7 @@ import { promises as fs } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { hostname, tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { createHash } from 'node:crypto';
 import { exportKlines } from '../export';
 import { isStaleLock } from '../lock';
 import type { ExportOptions } from '../export';
@@ -153,6 +154,56 @@ describe('durable exports', () => {
     const empty = join(dir, 'empty.jsonl');
     await exportKlines({ ...options, format: 'jsonl', outputPath: empty });
     expect(await fs.readFile(empty, 'utf8')).toBe('');
+  });
+  it('writes price-only CSV columns for mark klines', async () => {
+    await exportKlines({
+      ...options,
+      market: 'usd-m',
+      kind: 'mark',
+      format: 'csv',
+    });
+    const [header, first] = (
+      await fs.readFile(options.outputPath, 'utf8')
+    ).split('\n');
+    expect(header).toBe('openTime,open,high,low,close,closeTime');
+    expect(first).toBe(`${start},1,2,0.5,1.5,${start + 59999}`);
+  });
+  it('keeps the fingerprint of trade checkpoints written by earlier versions', async () => {
+    http.get
+      .mockResolvedValueOnce({ data: [row(start)] })
+      .mockRejectedValueOnce(new Error('offline'));
+    await expect(exportKlines(options)).rejects.toThrow('offline');
+    const checkpoint = JSON.parse(
+      await fs.readFile(`${options.outputPath}.checkpoint.json`, 'utf8'),
+    );
+    expect(checkpoint.fingerprint).toBe(
+      createHash('sha256')
+        .update(
+          JSON.stringify({
+            pair: 'BTCUSDT',
+            market: 'spot',
+            interval: '1m',
+            start,
+            end: start + 180000,
+            includeOpen: false,
+            format: 'json',
+          }),
+        )
+        .digest('hex'),
+    );
+    await expect(
+      exportKlines({ ...options, market: 'usd-m', resume: true }),
+    ).rejects.toMatchObject({ code: 'INVALID_CHECKPOINT' });
+  });
+  it('does not resume a trade checkpoint as another kind', async () => {
+    const futures = { ...options, market: 'usd-m' as const };
+    http.get
+      .mockResolvedValueOnce({ data: [row(start)] })
+      .mockRejectedValueOnce(new Error('offline'));
+    await expect(exportKlines(futures)).rejects.toThrow('offline');
+    await expect(
+      exportKlines({ ...futures, kind: 'mark', resume: true }),
+    ).rejects.toMatchObject({ code: 'INVALID_CHECKPOINT' });
   });
   it('uses COIN-M CSV field names and units', async () => {
     await exportKlines({ ...options, market: 'coin-m', format: 'csv' });

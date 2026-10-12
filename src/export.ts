@@ -4,9 +4,10 @@ import { dirname, resolve } from 'node:path';
 import { createHash } from 'node:crypto';
 import { DownloadError, validateDownload } from './config';
 import { iteratePages } from './klines';
+import type { Candle } from './klines';
 import { acquireExportLock } from './lock';
 import { checkAbort, RequestContext } from './network';
-import type { AnyKline, DownloadOptions, Market, OutputFormat } from './types';
+import type { DownloadOptions, KlineKind, Market, OutputFormat } from './types';
 
 export const SPOT_FIELDS = [
   'openTime',
@@ -36,12 +37,31 @@ export const COIN_FIELDS = [
   'takerBaseAssetVolume',
   'ignored',
 ];
-export const fieldsFor = (market: Market): string[] =>
-  market === 'coin-m' ? COIN_FIELDS : SPOT_FIELDS;
-export function csvRow(candle: AnyKline, market: Market): string {
-  return fieldsFor(market)
+export const PRICE_FIELDS = [
+  'openTime',
+  'open',
+  'high',
+  'low',
+  'close',
+  'closeTime',
+];
+export const fieldsFor = (
+  market: Market,
+  kind: KlineKind = 'trade',
+): string[] =>
+  kind !== 'trade'
+    ? PRICE_FIELDS
+    : market === 'coin-m'
+      ? COIN_FIELDS
+      : SPOT_FIELDS;
+export function csvRow(
+  candle: Candle,
+  market: Market,
+  kind: KlineKind = 'trade',
+): string {
+  return fieldsFor(market, kind)
     .map((key) => {
-      const value = String(candle[key as keyof AnyKline]);
+      const value = String(candle[key as keyof Candle]);
       return /[",\r\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
     })
     .join(',');
@@ -60,7 +80,7 @@ interface Checkpoint {
   replacedFile?: { size: number; mtimeMs: number };
   prefixHash: string;
 }
-export interface ExportOptions extends DownloadOptions<Market> {
+export interface ExportOptions extends DownloadOptions<Market, KlineKind> {
   outputPath: string;
   format?: OutputFormat;
   resume?: boolean;
@@ -165,7 +185,8 @@ export async function exportKlines(
         end: config.end,
         includeOpen: !!config.includeOpen,
         format,
-        // Only customised hosts enter the fingerprint, so older checkpoints stay valid.
+        // Only non-default kinds and hosts enter the fingerprint, so older checkpoints stay valid.
+        ...(config.kind !== 'trade' && { kind: config.kind }),
         ...(config.baseUrl !== config.adapter.baseUrl && {
           baseUrl: config.baseUrl,
         }),
@@ -315,7 +336,7 @@ export async function exportKlines(
         format === 'json'
           ? '['
           : format === 'csv'
-            ? `${fieldsFor(config.market).join(',')}\n`
+            ? `${fieldsFor(config.market, config.kind).join(',')}\n`
             : '';
       await writeAll(file, header);
       await file.sync();
@@ -354,7 +375,7 @@ export async function exportKlines(
           let text = '';
           if (format === 'csv')
             text = page.data
-              .map((c) => `${csvRow(c, config.market)}\n`)
+              .map((c) => `${csvRow(c, config.market, config.kind)}\n`)
               .join('');
           else if (format === 'jsonl')
             text = page.data.map((c) => `${JSON.stringify(c)}\n`).join('');

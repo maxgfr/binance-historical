@@ -1,4 +1,9 @@
-import type { BinanceInterval, DownloadOptions, Market } from './types';
+import type {
+  BinanceInterval,
+  DownloadOptions,
+  KlineKind,
+  Market,
+} from './types';
 
 export class DownloadError extends Error {
   constructor(
@@ -30,6 +35,16 @@ export const INTERVALS: BinanceInterval[] = [
   '1w',
   '1M',
 ];
+export const KINDS: Record<
+  KlineKind,
+  { endpoint: string; param: 'symbol' | 'pair' }
+> = {
+  trade: { endpoint: 'klines', param: 'symbol' },
+  mark: { endpoint: 'markPriceKlines', param: 'symbol' },
+  index: { endpoint: 'indexPriceKlines', param: 'pair' },
+  premium: { endpoint: 'premiumIndexKlines', param: 'symbol' },
+};
+const FUTURES_KINDS = Object.keys(KINDS) as KlineKind[];
 export const MARKETS: Record<
   Market,
   {
@@ -41,6 +56,7 @@ export const MARKETS: Record<
     /** Results ascend from startTime, so an empty range can be skipped with one probe. */
     seekable: boolean;
     intervals: BinanceInterval[];
+    kinds: KlineKind[];
   }
 > = {
   spot: {
@@ -50,6 +66,7 @@ export const MARKETS: Record<
     windowMs: Infinity,
     seekable: true,
     intervals: INTERVALS,
+    kinds: ['trade'],
   },
   'usd-m': {
     baseUrl: 'https://fapi.binance.com/fapi/v1',
@@ -58,6 +75,7 @@ export const MARKETS: Record<
     windowMs: Infinity,
     seekable: true,
     intervals: INTERVALS.filter((i) => i !== '1s'),
+    kinds: FUTURES_KINDS,
   },
   'coin-m': {
     baseUrl: 'https://dapi.binance.com/dapi/v1',
@@ -67,6 +85,7 @@ export const MARKETS: Record<
     // DAPI can return the latest rows of a range, which a probe could skip past.
     seekable: false,
     intervals: INTERVALS.filter((i) => i !== '1s'),
+    kinds: FUTURES_KINDS,
   },
 };
 export function invalid(message: string): never {
@@ -118,7 +137,7 @@ export function parseDate(value: string): Date {
   return date;
 }
 export function validateDownload<M extends Market>(
-  options: DownloadOptions<M>,
+  options: DownloadOptions<M, KlineKind>,
 ) {
   const market: Market = options.market ?? 'spot';
   if (!Object.prototype.hasOwnProperty.call(MARKETS, market))
@@ -126,6 +145,14 @@ export function validateDownload<M extends Market>(
   const adapter = MARKETS[market];
   if (!adapter.intervals.includes(options.interval))
     invalid(`Invalid interval "${options.interval}" for ${market}`);
+  const kind: KlineKind = options.kind ?? 'trade';
+  if (
+    !Object.prototype.hasOwnProperty.call(KINDS, kind) ||
+    !adapter.kinds.includes(kind)
+  )
+    invalid(
+      `Invalid kind "${kind}" for ${market}; use ${adapter.kinds.join(', ')}`,
+    );
   const pair = normalizePair(options.pair);
   const start =
     options.startDate instanceof Date ? options.startDate.getTime() : NaN;
@@ -160,6 +187,7 @@ export function validateDownload<M extends Market>(
     ...options,
     market,
     adapter,
+    kind,
     baseUrl,
     pair,
     start,

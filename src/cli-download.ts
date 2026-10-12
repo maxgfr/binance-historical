@@ -14,6 +14,7 @@ import type { CliOptions } from './cli-input';
 import type {
   BinanceInterval,
   DownloadOptions,
+  KlineKind,
   Market,
   OutputFormat,
   Progress,
@@ -68,11 +69,13 @@ export function outputName(
   start: Date,
   end: Date,
   format: OutputFormat,
+  kind: KlineKind = 'trade',
 ): string {
   const stamp = (date: Date) => date.toISOString().replace(/:/g, '-');
   // 1m and 1M would share a file on case-insensitive filesystems.
   const name = interval === '1M' ? '1mo' : interval;
-  return `${market}_${pair}_${name}_${stamp(start)}_${stamp(end)}.${format}`;
+  const prefix = kind === 'trade' ? market : `${market}-${kind}`;
+  return `${prefix}_${pair}_${name}_${stamp(start)}_${stamp(end)}.${format}`;
 }
 export interface ProgressState {
   start: number;
@@ -121,8 +124,9 @@ export async function download(
   const market = options.market as Market;
   const format = options.format as OutputFormat;
   const referenceTime = Date.now();
-  const common: Omit<DownloadOptions<Market>, 'pair'> = {
+  const common: Omit<DownloadOptions<Market, KlineKind>, 'pair'> = {
     market,
+    kind: options.kind as KlineKind,
     interval: options.interval as BinanceInterval,
     startDate: parseDate(options.start as string),
     endDate: parseDate(options.end as string),
@@ -153,6 +157,7 @@ export async function download(
           common.startDate,
           common.endDate,
           format,
+          common.kind,
         ),
       );
       try {

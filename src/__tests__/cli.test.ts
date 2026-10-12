@@ -121,6 +121,17 @@ describe('actual CLI', () => {
     const report = JSON.parse(stdout);
     expect(report.markets.spot.intervals).toContain('1s');
     expect(report.markets['coin-m'].fields).toContain('baseAssetVolume');
+    expect(report.markets.spot.kinds).toEqual({
+      trade: { fields: report.markets.spot.fields },
+    });
+    expect(report.markets['usd-m'].kinds.index.fields).toEqual([
+      'openTime',
+      'open',
+      'high',
+      'low',
+      'close',
+      'closeTime',
+    ]);
     expect(report.dates.end).toBe('exclusive');
     expect(http.get).not.toHaveBeenCalled();
   });
@@ -257,6 +268,34 @@ describe('actual CLI', () => {
     await invoke('download', ...args(), flag, value, '--json');
     expect(process.exitCode).toBe(2);
     expect(JSON.parse(stdout).error.code).toBe('INVALID_ARGUMENT');
+    expect(http.get).not.toHaveBeenCalled();
+  });
+  it('downloads futures mark klines into a kind-specific file', async () => {
+    await invoke(
+      'download',
+      ...args(),
+      '--market',
+      'usd-m',
+      '--kind',
+      'mark',
+      '--json',
+    );
+    const [result] = JSON.parse(stdout).results;
+    expect(result.status).toBe('success');
+    expect(result.outputPath.startsWith(join(dir, 'usd-m-mark_BTCUSDT_'))).toBe(
+      true,
+    );
+    expect(http.get.mock.calls[0][0]).toContain('/fapi/v1/markPriceKlines');
+    expect(
+      Object.keys(JSON.parse(await fs.readFile(result.outputPath, 'utf8'))[0]),
+    ).toEqual(['openTime', 'open', 'high', 'low', 'close', 'closeTime']);
+  });
+  it.each([
+    ['--market', 'spot', '--kind', 'mark'],
+    ['--market', 'usd-m', '--kind', 'last'],
+  ])('rejects unsupported kinds: %s %s %s %s', async (...extra) => {
+    await invoke('download', ...args(), ...extra, '--json');
+    expect(process.exitCode).toBe(2);
     expect(http.get).not.toHaveBeenCalled();
   });
   it('uses explicit root options with the subcommand', async () => {

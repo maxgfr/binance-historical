@@ -9,7 +9,7 @@ import {
   normalizePair,
   parseDate,
 } from './config';
-import type { BinanceInterval, Market } from './types';
+import type { BinanceInterval, KlineKind, Market } from './types';
 
 export interface CliOptions {
   pair?: string;
@@ -27,6 +27,7 @@ export interface CliOptions {
   resume?: boolean;
   overwrite?: boolean;
   formatExplicit?: boolean;
+  kind: string;
   timeout: string;
   maxRetries: string;
   requestDelay: string;
@@ -61,6 +62,11 @@ export function downloadOptions(command: Command): Command {
       'json',
     )
     .option('--market <market>', 'spot, usd-m or coin-m', 'spot')
+    .option(
+      '--kind <kind>',
+      'trade, or for usd-m and coin-m: mark, index (--pair is the underlying pair) or premium',
+      'trade',
+    )
     .option('--concurrency <number>', 'Concurrent symbols (1–4)', '2')
     .option(
       '--include-open',
@@ -110,6 +116,9 @@ export async function completeOptions(
     invalid('--pair and --pairs are mutually exclusive');
   if (!Object.prototype.hasOwnProperty.call(MARKETS, options.market))
     invalid('Market must be spot, usd-m or coin-m');
+  const { kinds } = MARKETS[options.market as Market];
+  if (!kinds.includes(options.kind as KlineKind))
+    invalid(`Kind must be ${kinds.join(', ')} for ${options.market}`);
   if (!['json', 'csv', 'jsonl'].includes(options.format))
     invalid('Format must be json, csv or jsonl');
   if (options.resume && options.overwrite)

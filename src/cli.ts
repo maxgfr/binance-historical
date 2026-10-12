@@ -32,11 +32,18 @@ export function describe() {
           maxLimit: config.maxLimit,
           fields: fieldsFor(name as Market),
           outputSchema: candleSchema(name as Market),
+          kinds: Object.fromEntries(
+            config.kinds.map((kind) => [
+              kind,
+              { fields: fieldsFor(name as Market, kind) },
+            ]),
+          ),
         },
       ]),
     ),
     defaults: {
       market: 'spot',
+      kind: 'trade',
       format: 'json',
       concurrency: 2,
       includeOpen: false,

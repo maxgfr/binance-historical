@@ -1,4 +1,4 @@
-import { DownloadError, validateDownload, windowEnd } from './config';
+import { DownloadError, KINDS, validateDownload, windowEnd } from './config';
 import { checkAbort, RequestContext } from './network';
 import type {
   AnyKline,
@@ -6,31 +6,40 @@ import type {
   BinanceResponseData,
   DownloadOptions,
   Kline,
+  KlineFor,
+  KlineKind,
   Market,
-  MarketKline,
+  PriceKline,
 } from './types';
+
+export type Candle = AnyKline | PriceKline;
 
 const DECIMAL = /^\d+(?:\.\d+)?$/;
 const DECIMAL_COLUMNS = [1, 2, 3, 4, 5, 7, 9, 10, 11];
+/** Premium index prices can be negative. */
+const SIGNED = /^-?\d+(?:\.\d+)?$/;
+const PRICE_COLUMNS = [1, 2, 3, 4];
 
-function validateRows(data: unknown): BinanceResponseData[] {
+function validateRows(data: unknown, kind: KlineKind): BinanceResponseData[] {
   if (!Array.isArray(data))
     throw new DownloadError(
       'Binance returned a non-array response',
       'INVALID_RESPONSE',
     );
+  const trade = kind === 'trade';
   for (const row of data) {
     if (
       !Array.isArray(row) ||
-      row.length !== 12 ||
+      (trade ? row.length !== 12 : row.length < 7) ||
       !Number.isSafeInteger(row[0]) ||
       row[0] < 0 ||
       !Number.isSafeInteger(row[6]) ||
       row[6] < row[0] ||
-      !Number.isSafeInteger(row[8]) ||
-      row[8] < 0 ||
-      DECIMAL_COLUMNS.some(
-        (i) => typeof row[i] !== 'string' || !DECIMAL.test(row[i]),
+      (trade && (!Number.isSafeInteger(row[8]) || row[8] < 0)) ||
+      (trade ? DECIMAL_COLUMNS : PRICE_COLUMNS).some(
+        (i) =>
+          typeof row[i] !== 'string' ||
+          !(trade ? DECIMAL : SIGNED).test(row[i]),
       )
     ) {
       throw new DownloadError(
@@ -41,7 +50,20 @@ function validateRows(data: unknown): BinanceResponseData[] {
   }
   return data as BinanceResponseData[];
 }
-function mapRow(row: BinanceResponseData, market: Market): AnyKline {
+function mapRow(
+  row: BinanceResponseData,
+  market: Market,
+  kind: KlineKind,
+): Candle {
+  if (kind !== 'trade')
+    return {
+      openTime: row[0],
+      open: row[1],
+      high: row[2],
+      low: row[3],
+      close: row[4],
+      closeTime: row[6],
+    };
   return market === 'coin-m'
     ? {
         openTime: row[0],
@@ -73,7 +95,7 @@ function mapRow(row: BinanceResponseData, market: Market): AnyKline {
       };
 }
 export interface Page {
-  data: AnyKline[];
+  data: Candle[];
   nextCursor: number;
   requests: number;
   retries: number;
@@ -81,7 +103,7 @@ export interface Page {
 
 /** Internal page seam used by the durable exporter. */
 export async function* iteratePages(
-  options: DownloadOptions<Market>,
+  options: DownloadOptions<Market, KlineKind>,
   context = new RequestContext(),
 ): AsyncGenerator<Page> {
   const config = validateDownload(options);
@@ -94,7 +116,8 @@ export async function* iteratePages(
   let requests = 0;
   let retries = 0;
   let lastOpen = -1;
-  const url = `${config.baseUrl}/klines`;
+  const { endpoint, param } = KINDS[config.kind];
+  const url = `${config.baseUrl}/${endpoint}`;
   // The budget of another host (binance.us allows 1200) is unknown: rely on 429s.
   const weightLimit =
     config.baseUrl === config.adapter.baseUrl
@@ -124,32 +147,33 @@ export async function* iteratePages(
       cursor + config.adapter.windowMs,
     );
     const raw = await request({
-      symbol: config.pair,
+      [param]: config.pair,
       interval: config.interval,
       startTime: cursor,
       endTime: nextCursor - 1,
       limit: config.limit,
     });
     requests++;
-    const rows = validateRows(raw);
+    const rows = validateRows(raw, config.kind);
     if (rows.length > config.limit)
       throw new DownloadError(
         'Binance exceeded the requested page limit',
         'INVALID_RESPONSE',
       );
     rows.sort((a, b) => a[0] - b[0]);
-    const data: AnyKline[] = [];
+    const data: Candle[] = [];
     for (const row of rows) {
       if (row[0] < cursor || row[0] >= nextCursor || row[0] <= lastOpen)
         continue;
       lastOpen = row[0];
       if (!config.includeOpen && row[6] >= config.referenceTime) continue;
-      data.push(mapRow(row, config.market));
+      data.push(mapRow(row, config.market, config.kind));
     }
     // Before a listing or after a delisting, one probe replaces every empty page.
     if (
       !rows.length &&
       config.adapter.seekable &&
+      config.kind === 'trade' &&
       windowEnd(nextCursor, config.interval, config.limit) < end
     ) {
       const [first] = validateRows(
@@ -159,6 +183,7 @@ export async function* iteratePages(
           startTime: nextCursor,
           limit: 1,
         }),
+        config.kind,
       );
       requests++;
       nextCursor = first ? Math.min(end, Math.max(nextCursor, first[0])) : end;
@@ -176,22 +201,24 @@ export async function* iteratePages(
   }
 }
 
-export async function* iterateKlines<M extends Market = 'spot'>(
-  options: DownloadOptions<M>,
-): AsyncGenerator<MarketKline<M>> {
+export async function* iterateKlines<
+  M extends Market = 'spot',
+  K extends KlineKind = 'trade',
+>(options: DownloadOptions<M, K>): AsyncGenerator<KlineFor<M, K>> {
   for await (const page of iteratePages(options)) {
     for (const candle of page.data) {
       checkAbort(options.signal);
-      yield candle as MarketKline<M>;
+      yield candle as KlineFor<M, K>;
     }
   }
 }
-export async function getKlines<M extends Market = 'spot'>(
-  options: DownloadOptions<M>,
-): Promise<MarketKline<M>[]> {
-  const result: MarketKline<M>[] = [];
+export async function getKlines<
+  M extends Market = 'spot',
+  K extends KlineKind = 'trade',
+>(options: DownloadOptions<M, K>): Promise<KlineFor<M, K>[]> {
+  const result: KlineFor<M, K>[] = [];
   for await (const page of iteratePages(options)) {
-    for (const candle of page.data) result.push(candle as MarketKline<M>);
+    for (const candle of page.data) result.push(candle as KlineFor<M, K>);
   }
   return result;
 }

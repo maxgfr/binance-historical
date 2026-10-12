@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { getKline, getKlines, iterateKlines } from '../klines';
 import { parseDate, windowEnd } from '../config';
-import type { DownloadOptions, Market } from '../types';
+import type { DownloadOptions, KlineKind, Market } from '../types';
 
 jest.mock('axios');
 const http = axios as jest.Mocked<typeof axios>;
@@ -170,6 +170,8 @@ describe('historical client', () => {
     { market: 'bad' },
     { market: 'coin-m', interval: '1s' },
     { baseUrl: 'ftp://x' },
+    { kind: 'mark' },
+    { market: 'usd-m', kind: 'last' },
     { baseUrl: 'not a url' },
   ])('rejects invalid input %j before network', async (change) => {
     await expect(
@@ -311,5 +313,77 @@ describe('empty range seeking', () => {
     expect(http.get).toHaveBeenCalledTimes(7);
     for (const [, config] of http.get.mock.calls)
       expect(config!.params.endTime).toBeDefined();
+  });
+});
+
+describe('price kline kinds', () => {
+  beforeEach(() => jest.resetAllMocks());
+  const priceRow = (t: number) => [
+    t,
+    '-0.00054796',
+    '0.00049602',
+    '-0.00130507',
+    '-0.00037572',
+    '0',
+    t + 59999,
+    '0',
+    7068,
+    '0',
+    '0',
+    '0',
+  ];
+  it.each(
+    (['usd-m', 'coin-m'] as Market[]).flatMap((market) =>
+      (['mark', 'index', 'premium'] as KlineKind[]).map((kind) => [
+        market,
+        kind,
+      ]),
+    ),
+  )(
+    'requests %s %s klines and maps price-only candles',
+    async (market, kind) => {
+      http.get.mockResolvedValue({ data: [priceRow(start)] });
+      const [candle] = await getKlines({ ...options, market, kind });
+      const [url, config] = http.get.mock.calls[0];
+      const root = market === 'usd-m' ? '/fapi/v1/' : '/dapi/v1/';
+      const endpoint = {
+        mark: 'markPriceKlines',
+        index: 'indexPriceKlines',
+        premium: 'premiumIndexKlines',
+      }[kind as 'mark'];
+      expect(url).toContain(`${root}${endpoint}`);
+      expect(config!.params).toMatchObject(
+        kind === 'index' ? { pair: 'BTCUSDT' } : { symbol: 'BTCUSDT' },
+      );
+      expect(config!.params).not.toHaveProperty(
+        kind === 'index' ? 'symbol' : 'pair',
+      );
+      expect(candle).toEqual({
+        openTime: start,
+        open: '-0.00054796',
+        high: '0.00049602',
+        low: '-0.00130507',
+        close: '-0.00037572',
+        closeTime: start + 59999,
+      });
+    },
+  );
+  it('still rejects malformed price rows', async () => {
+    http.get.mockResolvedValue({
+      data: [priceRow(start).map((v, i) => (i === 2 ? 'NaN' : v))],
+    });
+    await expect(
+      getKlines({ ...options, market: 'usd-m', kind: 'mark' }),
+    ).rejects.toMatchObject({ code: 'INVALID_RESPONSE' });
+  });
+  it('does not probe empty ranges for price kinds', async () => {
+    http.get.mockResolvedValue({ data: [] });
+    await getKlines({
+      ...options,
+      market: 'usd-m',
+      kind: 'mark',
+      endDate: new Date(start + 3000 * 60000),
+    });
+    expect(http.get).toHaveBeenCalledTimes(3);
   });
 });
