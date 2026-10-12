@@ -55,7 +55,11 @@ export function downloadOptions(command: Command): Command {
       '-o, --output <directory>',
       'Output directory; filenames are generated',
     )
-    .option('-f, --format <format>', 'Export file format (json, csv)', 'json')
+    .option(
+      '-f, --format <format>',
+      'Export file format (json, csv, jsonl)',
+      'json',
+    )
     .option('--market <market>', 'spot, usd-m or coin-m', 'spot')
     .option('--concurrency <number>', 'Concurrent symbols (1–4)', '2')
     .option(
@@ -106,8 +110,8 @@ export async function completeOptions(
     invalid('--pair and --pairs are mutually exclusive');
   if (!Object.prototype.hasOwnProperty.call(MARKETS, options.market))
     invalid('Market must be spot, usd-m or coin-m');
-  if (options.format !== 'json' && options.format !== 'csv')
-    invalid('Format must be json or csv');
+  if (!['json', 'csv', 'jsonl'].includes(options.format))
+    invalid('Format must be json, csv or jsonl');
   if (options.resume && options.overwrite)
     invalid('--resume and --overwrite are mutually exclusive');
   if (!/^[1-4]$/.test(options.concurrency))
@@ -199,6 +203,7 @@ export async function completeOptions(
       choices: [
         { title: 'JSON', value: 'json' },
         { title: 'CSV', value: 'csv' },
+        { title: 'JSON Lines', value: 'jsonl' },
       ],
     });
   const answers = await prompts(

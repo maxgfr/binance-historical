@@ -59,7 +59,7 @@ export type BinanceResponseData = [
   string,
 ];
 export type BinanceResponse = { data: BinanceResponseData[] };
-export type OutputFormat = 'json' | 'csv';
+export type OutputFormat = 'json' | 'csv' | 'jsonl';
 export type PromptResult = {
   pair: string;
   interval: BinanceInterval;

@@ -68,6 +68,7 @@ export function describe() {
     files: {
       json: 'array of candles',
       csv: 'header and rows in fields order',
+      jsonl: 'one candle object per line',
       checkpoint: '<output>.checkpoint.json',
       partial: '<output>.part',
     },

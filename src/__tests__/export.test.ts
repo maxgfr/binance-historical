@@ -49,7 +49,7 @@ afterEach(async () => {
   await fs.rm(dir, { recursive: true, force: true });
 });
 describe('durable exports', () => {
-  it.each(['json', 'csv'] as const)(
+  it.each(['json', 'csv', 'jsonl'] as const)(
     'resumes %s after a partially written page and produces identical bytes',
     async (format) => {
       const complete = { ...options, format };
@@ -138,6 +138,21 @@ describe('durable exports', () => {
       [],
     );
     expect(await fs.readdir(join(dir, 'nested'))).toEqual(['data.json']);
+  });
+  it('writes one candle object per line in jsonl, and nothing when empty', async () => {
+    await exportKlines({ ...options, format: 'jsonl' });
+    const lines = (await fs.readFile(options.outputPath, 'utf8')).split('\n');
+    expect(lines).toHaveLength(4);
+    expect(lines[3]).toBe('');
+    expect(lines.slice(0, 3).map((l) => JSON.parse(l).openTime)).toEqual([
+      start,
+      start + 60000,
+      start + 120000,
+    ]);
+    http.get.mockResolvedValue({ data: [] });
+    const empty = join(dir, 'empty.jsonl');
+    await exportKlines({ ...options, format: 'jsonl', outputPath: empty });
+    expect(await fs.readFile(empty, 'utf8')).toBe('');
   });
   it('uses COIN-M CSV field names and units', async () => {
     await exportKlines({ ...options, market: 'coin-m', format: 'csv' });

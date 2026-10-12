@@ -144,7 +144,7 @@ export async function exportKlines(
   const config = validateDownload(options);
   checkAbort(options.signal);
   const format = options.format ?? 'json';
-  if (format !== 'json' && format !== 'csv')
+  if (!['json', 'csv', 'jsonl'].includes(format))
     throw new DownloadError('Invalid export format', 'INVALID_ARGUMENT');
   if (options.resume && options.overwrite)
     throw new DownloadError(
@@ -312,7 +312,11 @@ export async function exportKlines(
       file = await fs.open(partPath, 'wx');
       createdPart = true;
       const header =
-        format === 'json' ? '[' : `${fieldsFor(config.market).join(',')}\n`;
+        format === 'json'
+          ? '['
+          : format === 'csv'
+            ? `${fieldsFor(config.market).join(',')}\n`
+            : '';
       await writeAll(file, header);
       await file.sync();
       checkpoint.offset = Buffer.byteLength(header);
@@ -352,6 +356,8 @@ export async function exportKlines(
             text = page.data
               .map((c) => `${csvRow(c, config.market)}\n`)
               .join('');
+          else if (format === 'jsonl')
+            text = page.data.map((c) => `${JSON.stringify(c)}\n`).join('');
           else if (page.data.length)
             text = `${checkpoint.count ? ',' : ''}${page.data.map((c) => JSON.stringify(c)).join(',')}`;
           await writeAll(file, text);
