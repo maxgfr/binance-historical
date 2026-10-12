@@ -26,6 +26,8 @@ export function describe() {
       Object.entries(MARKETS).map(([name, config]) => [
         name,
         {
+          baseUrl: config.baseUrl,
+          weightLimit: config.weightLimit,
           intervals: config.intervals,
           maxLimit: config.maxLimit,
           fields: fieldsFor(name as Market),

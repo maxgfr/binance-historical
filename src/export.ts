@@ -165,6 +165,10 @@ export async function exportKlines(
         end: config.end,
         includeOpen: !!config.includeOpen,
         format,
+        // Only customised hosts enter the fingerprint, so older checkpoints stay valid.
+        ...(config.baseUrl !== config.adapter.baseUrl && {
+          baseUrl: config.baseUrl,
+        }),
       }),
     )
     .digest('hex');

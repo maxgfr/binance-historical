@@ -223,6 +223,42 @@ describe('actual CLI', () => {
       else Reflect.deleteProperty(process.stdin, 'isTTY');
     }
   });
+  it('passes network options to the client', async () => {
+    http.get.mockRejectedValue({
+      response: { status: 503, data: { msg: 'Unavailable' } },
+    });
+    await invoke(
+      'download',
+      ...args(),
+      '--base-url',
+      'https://api.binance.us/api/v3/',
+      '--max-retries',
+      '0',
+      '--timeout',
+      '1234',
+      '--request-delay',
+      '0',
+      '--json',
+    );
+    expect(http.get).toHaveBeenCalledTimes(1);
+    expect(http.get.mock.calls[0][0]).toBe(
+      'https://api.binance.us/api/v3/klines',
+    );
+    expect(http.get.mock.calls[0][1]?.timeout).toBe(1234);
+    expect(JSON.parse(stdout).results[0].error.code).toBe('NETWORK_ERROR');
+  });
+  it.each([
+    ['--timeout', '0'],
+    ['--timeout', '1.5'],
+    ['--max-retries', '-1'],
+    ['--request-delay', 'soon'],
+    ['--base-url', 'ftp://example.com'],
+  ])('rejects %s %s before any request', async (flag, value) => {
+    await invoke('download', ...args(), flag, value, '--json');
+    expect(process.exitCode).toBe(2);
+    expect(JSON.parse(stdout).error.code).toBe('INVALID_ARGUMENT');
+    expect(http.get).not.toHaveBeenCalled();
+  });
   it('uses explicit root options with the subcommand', async () => {
     await invoke(
       '--market',

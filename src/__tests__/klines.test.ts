@@ -123,6 +123,16 @@ describe('historical client', () => {
         });
     },
   );
+  it('uses a custom base URL without a trailing slash', async () => {
+    http.get.mockResolvedValue({ data: [row(start)] });
+    await getKlines({
+      ...options,
+      baseUrl: 'https://api.binance.us/api/v3/',
+    });
+    expect(http.get.mock.calls[0][0]).toBe(
+      'https://api.binance.us/api/v3/klines',
+    );
+  });
   it('caps COIN-M windows at 200 days', async () => {
     http.get.mockResolvedValue({ data: [] });
     await getKlines({
@@ -159,6 +169,8 @@ describe('historical client', () => {
     { timeoutMs: 0 },
     { market: 'bad' },
     { market: 'coin-m', interval: '1s' },
+    { baseUrl: 'ftp://x' },
+    { baseUrl: 'not a url' },
   ])('rejects invalid input %j before network', async (change) => {
     await expect(
       getKlines({ ...options, ...change } as DownloadOptions),

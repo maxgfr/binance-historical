@@ -5,6 +5,7 @@ import {
   INTERVALS,
   invalid,
   MARKETS,
+  normalizeBaseUrl,
   normalizePair,
   parseDate,
 } from './config';
@@ -26,6 +27,10 @@ export interface CliOptions {
   resume?: boolean;
   overwrite?: boolean;
   formatExplicit?: boolean;
+  timeout: string;
+  maxRetries: string;
+  requestDelay: string;
+  baseUrl?: string;
 }
 export function downloadOptions(command: Command): Command {
   return command
@@ -62,6 +67,17 @@ export function downloadOptions(command: Command): Command {
       '--overwrite',
       'Replace existing exports after a successful download',
     )
+    .option('--timeout <ms>', 'Per-request timeout in milliseconds', '30000')
+    .option('--max-retries <n>', 'Retries for transient failures', '3')
+    .option(
+      '--request-delay <ms>',
+      'Minimum spacing between request starts in milliseconds',
+      '100',
+    )
+    .option(
+      '--base-url <url>',
+      'Replace the market REST root, e.g. https://api.binance.us/api/v3',
+    )
     .option(
       '--non-interactive',
       'Fail on missing arguments instead of prompting',
@@ -96,6 +112,18 @@ export async function completeOptions(
     invalid('--resume and --overwrite are mutually exclusive');
   if (!/^[1-4]$/.test(options.concurrency))
     invalid('Concurrency must be between 1 and 4');
+  for (const [flag, value, minimum] of [
+    ['--timeout', options.timeout, 1],
+    ['--max-retries', options.maxRetries, 0],
+    ['--request-delay', options.requestDelay, 0],
+  ] as const)
+    if (
+      !/^\d+$/.test(value) ||
+      !Number.isSafeInteger(Number(value)) ||
+      Number(value) < minimum
+    )
+      invalid(`${flag} must be an integer of at least ${minimum}`);
+  if (options.baseUrl !== undefined) normalizeBaseUrl(options.baseUrl);
   if (options.start !== undefined) parseDate(options.start);
   if (options.end !== undefined) parseDate(options.end);
   if (

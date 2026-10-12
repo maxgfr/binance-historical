@@ -83,7 +83,6 @@ export interface Page {
 export async function* iteratePages(
   options: DownloadOptions<Market>,
   context = new RequestContext(),
-  baseUrl?: string,
 ): AsyncGenerator<Page> {
   const config = validateDownload(options);
   let cursor = config.start;
@@ -95,11 +94,16 @@ export async function* iteratePages(
   let requests = 0;
   let retries = 0;
   let lastOpen = -1;
-  const url = `${baseUrl ?? config.adapter.baseUrl}/klines`;
+  const url = `${config.baseUrl}/klines`;
+  // The budget of another host (binance.us allows 1200) is unknown: rely on 429s.
+  const weightLimit =
+    config.baseUrl === config.adapter.baseUrl
+      ? config.adapter.weightLimit
+      : undefined;
   const request = (params: Record<string, string | number>) =>
     context.get(url, params, {
       ...options,
-      weightLimit: baseUrl ? undefined : config.adapter.weightLimit,
+      weightLimit,
       onRetry: () => {
         retries++;
         requests++;
@@ -204,11 +208,14 @@ export async function getKline(
   if (!/^[a-z][a-z0-9-]*$/.test(source) || !/^v\d+$/.test(version))
     throw new DownloadError('Invalid source or version', 'INVALID_ARGUMENT');
   const result: Kline[] = [];
-  for await (const page of iteratePages(
-    { pair, interval, startDate, endDate, limit },
-    new RequestContext(),
-    `https://${source}.binance.com/${source}/${version}`,
-  )) {
+  for await (const page of iteratePages({
+    pair,
+    interval,
+    startDate,
+    endDate,
+    limit,
+    baseUrl: `https://${source}.binance.com/${source}/${version}`,
+  })) {
     for (const candle of page.data) result.push(candle as Kline);
   }
   return result;

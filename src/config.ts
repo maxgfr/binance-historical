@@ -79,6 +79,18 @@ export function normalizePair(pair: string): string {
   return pair.trim().toUpperCase();
 }
 
+export function normalizeBaseUrl(value: string): string {
+  let url: URL | undefined;
+  try {
+    url = new URL(value);
+  } catch {
+    // Reported below with the other invalid values.
+  }
+  if (!url || (url.protocol !== 'https:' && url.protocol !== 'http:'))
+    invalid(`Base URL must be an http(s) URL, got "${value}"`);
+  return value.replace(/\/+$/, '');
+}
+
 /** A strict calendar parser: date-only is UTC; timestamps require Z or an offset. */
 export function parseDate(value: string): Date {
   const match =
@@ -140,10 +152,15 @@ export function validateDownload<M extends Market>(
     if (!Number.isSafeInteger(value) || value < minimum)
       invalid(`Invalid ${name}`);
   }
+  const baseUrl =
+    options.baseUrl === undefined
+      ? adapter.baseUrl
+      : normalizeBaseUrl(options.baseUrl);
   return {
     ...options,
     market,
     adapter,
+    baseUrl,
     pair,
     start,
     end,

@@ -90,6 +90,8 @@ export interface DownloadOptions<M extends Market = 'spot'> {
   maxRetries?: number;
   /** Minimum spacing between request starts; defaults to 100 ms. */
   requestDelayMs?: number;
+  /** Replaces the market's REST root, e.g. https://api.binance.us/api/v3. */
+  baseUrl?: string;
   signal?: AbortSignal;
   onProgress?: (progress: Progress) => void;
 }

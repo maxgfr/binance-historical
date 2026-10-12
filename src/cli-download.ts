@@ -128,6 +128,10 @@ export async function download(
     endDate: parseDate(options.end as string),
     includeOpen: !!options.includeOpen,
     referenceTime,
+    timeoutMs: Number(options.timeout),
+    maxRetries: Number(options.maxRetries),
+    requestDelayMs: Number(options.requestDelay),
+    baseUrl: options.baseUrl,
     signal,
   };
   pairs.forEach((pair) => validateDownload({ ...common, pair }));
