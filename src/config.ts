@@ -107,7 +107,10 @@ export function normalizeBaseUrl(value: string): string {
   }
   if (!url || (url.protocol !== 'https:' && url.protocol !== 'http:'))
     invalid(`Base URL must be an http(s) URL, got "${value}"`);
-  return value.replace(/\/+$/, '');
+  // A loop, not /\/+$/, which backtracks quadratically on runs of slashes.
+  let end = value.length;
+  while (end > 0 && value[end - 1] === '/') end--;
+  return value.slice(0, end);
 }
 
 /** A strict calendar parser: date-only is UTC; timestamps require Z or an offset. */

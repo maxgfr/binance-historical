@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { getKline, getKlines, iterateKlines } from '../klines';
-import { parseDate, windowEnd } from '../config';
+import { normalizeBaseUrl, parseDate, windowEnd } from '../config';
 import type { DownloadOptions, KlineKind, Market } from '../types';
 
 jest.mock('axios');
@@ -132,6 +132,15 @@ describe('historical client', () => {
     expect(http.get.mock.calls[0][0]).toBe(
       'https://api.binance.us/api/v3/klines',
     );
+  });
+  it('strips trailing slashes in linear time', () => {
+    expect(normalizeBaseUrl('https://api.binance.us/api/v3///')).toBe(
+      'https://api.binance.us/api/v3',
+    );
+    const hostile = `https://a${'/'.repeat(200000)}x`;
+    const started = Date.now();
+    expect(normalizeBaseUrl(hostile)).toBe(hostile);
+    expect(Date.now() - started).toBeLessThan(1000);
   });
   it('caps COIN-M windows at 200 days', async () => {
     http.get.mockResolvedValue({ data: [] });
