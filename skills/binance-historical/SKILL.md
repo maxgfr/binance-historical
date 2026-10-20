@@ -1,8 +1,6 @@
 ---
 name: binance-historical
 description: Download and resume Binance historical candles for Spot and futures markets with JSON, CSV or JSON Lines exports. Use only when the user explicitly asks for binance-historical or a Binance candle download.
-metadata:
-  opencode/autoinvoke: 'true'
 ---
 
 # Download Binance historical candles
