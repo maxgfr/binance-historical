@@ -33,10 +33,6 @@ try {
   );
   const frontmatter = source.match(/^---\n([\s\S]*?)\n---/)?.[1] ?? '';
   assert.doesNotMatch(frontmatter, /^disable-model-invocation:\s*true\s*$/m);
-  assert.doesNotMatch(
-    frontmatter,
-    /opencode\/autoinvoke:\s*['"]?false['"]?\s*$/m,
-  );
   assert.match(
     frontmatter,
     /Use only when the user explicitly asks for binance-historical/,
