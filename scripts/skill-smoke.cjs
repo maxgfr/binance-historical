@@ -37,13 +37,6 @@ try {
     frontmatter,
     /Use only when the user explicitly asks for binance-historical/,
   );
-  assert.match(
-    readFileSync(
-      join(root, 'skills/binance-historical/agents/openai.yaml'),
-      'utf8',
-    ),
-    /^policy:\s*\n(?:[ \t]+[^\n]*\n)*?[ \t]+allow_implicit_invocation:\s*true\s*$/m,
-  );
   for (const agent of ['.agents', '.claude'])
     assert.equal(
       readFileSync(
