@@ -16,8 +16,7 @@ try {
       '--skill',
       'binance-historical',
       '--agent',
-      'claude-code',
-      'codex',
+      'universal',
       '--yes',
     ],
     { cwd: temp, encoding: 'utf8', timeout: 120000 },
@@ -37,15 +36,14 @@ try {
     frontmatter,
     /Use only when the user explicitly asks for binance-historical/,
   );
-  for (const agent of ['.agents', '.claude'])
-    assert.equal(
-      readFileSync(
-        join(temp, agent, 'skills/binance-historical/SKILL.md'),
-        'utf8',
-      ),
-      source,
-    );
-  console.log('npx skills installation for Claude Code and Codex: OK');
+  assert.equal(
+    readFileSync(
+      join(temp, '.agents', 'skills/binance-historical/SKILL.md'),
+      'utf8',
+    ),
+    source,
+  );
+  console.log('npx skills installation to .agents/skills: OK');
 } finally {
   rmSync(temp, { recursive: true, force: true });
 }

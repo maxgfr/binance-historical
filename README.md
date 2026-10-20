@@ -4,8 +4,8 @@ Download historical Binance candles as JSON, CSV or JSON Lines, from a CLI or Ty
 Supports Spot, USDⓈ-M futures and COIN-M futures, multiple symbols, bounded-memory
 exports and recovery after interruption. Public market data requires no API key.
 
-Use the [agent skill for Claude Code and Codex](#agent-skill-claude-code-and-codex)
-to request downloads in natural language.
+Use the [agent skill](#agent-skill) from any skills-compatible agent to request
+downloads in natural language.
 
 ## Install
 
@@ -152,18 +152,18 @@ existing candle, so a start date long before a symbol's listing costs two
 requests instead of one per empty window. COIN-M paginates window by window,
 because its API can return the latest rows of a range.
 
-## Agent skill (Claude Code and Codex)
+## Agent skill
 
-The [binance-historical skill](skills/binance-historical/SKILL.md) lets Claude Code
-and Codex download candles, choose the correct market and resume interrupted
-exports through the CLI. Install it with:
+The [binance-historical skill](skills/binance-historical/SKILL.md) lets any
+skills-compatible agent download candles, choose the correct market and resume
+interrupted exports through the CLI. Install it with:
 
 ```sh
-npx skills add maxgfr/binance-historical \
-  --skill binance-historical --agent claude-code codex
+npx skills add maxgfr/binance-historical
 ```
 
-Add `--global` for installation across projects. This installs the skill, not
+Add `-a <agent>` (for example `-a codex` or `-a opencode`) to target one agent
+explicitly. Add `--global` for installation across projects. This installs the skill, not
 the CLI executable, which is installed separately as described above. To try a
 local checkout, use `npx skills add .`.
 
