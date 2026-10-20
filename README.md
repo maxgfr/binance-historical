@@ -163,9 +163,9 @@ npx skills add maxgfr/binance-historical
 ```
 
 Add `-a <agent>` (for example `-a codex` or `-a opencode`) to target one agent
-explicitly. Add `--global` for installation across projects. This installs the skill, not
-the CLI executable, which is installed separately as described above. To try a
-local checkout, use `npx skills add .`.
+explicitly. Add `--global` for installation across projects. This installs the
+skill, not the CLI executable, which is installed separately as described above.
+To try a local checkout, use `npx skills add .`.
 
 For example, ask your agent: “Download January 2024 BTCUSDT hourly candles as
 CSV into ./data.” The skill handles exclusive end dates and reads the CLI’s
@@ -294,7 +294,7 @@ commands and the limits of the local checks.
 
 The `binance-historical` skill is model-invocable, but its description restricts it to explicit requests: the agent calls it when you ask for it, not on its own. Ask for it in plain words, or use `$binance-historical` in Codex or `/binance-historical` in Claude Code and OpenCode (with the plugin namespace when installed as a Claude plugin).
 
-You keep the switch on every host:
+You keep the switch in the frontmatter of the installed `SKILL.md`:
 
 | Host | Shipped, on request | Explicit-only |
 | --- | --- | --- |
