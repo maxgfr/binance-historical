@@ -12,8 +12,8 @@ Baseline: `e45b9265f4282486e32cb8cee794806cba4f2e3f` (1.6.8).
   included skill, and a strict TypeScript consumer including distinct COIN-M
   volumes and the legacy `getKline` signature.
 - `npx skills@1.5.24 add <checkout> --skill binance-historical --agent
-  universal --yes` installs a readable skill to the agent-neutral
-  `.agents/skills` location in an isolated temporary project. Skill frontmatter validation also passes.
+claude-code codex --yes` installs readable skills for both agents in an
+  isolated temporary project. Skill frontmatter validation also passes.
 - Live CLI downloads returned exactly two consecutive 1-minute candles for
   2024-01-01T00:00:00Z through the exclusive 00:02:00Z boundary on Spot BTCUSDT,
   USDⓈ-M BTCUSDT and COIN-M BTCUSD_PERP.
